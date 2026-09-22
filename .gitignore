@@ -1,5 +1,6 @@
 # 敏感信息：API Key（本地使用，勿提交）
 config.txt
+juhe_key.txt
 
 # Python 缓存
 __pycache__/

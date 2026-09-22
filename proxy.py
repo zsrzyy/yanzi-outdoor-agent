@@ -37,6 +37,10 @@ QWEATHER_HOST = "https://mh78m47ufw.re.qweatherapi.com"
 QWEATHER_KEY = "3636aa9224b341228d6bb823f154775a"
 XZ_LOC = "101190801"  # 徐州
 
+# 聚合数据（兜底数据源）：12306 直连被风控/无数据时，用聚合数据火车时刻表接口兜底
+JUHE_URL = "https://apis.juhe.cn/fapigw/train/query"
+JUHE_KEY_FILE = os.path.join(BASE_DIR, "juhe_key.txt")
+
 # 本机 Python 缺 CA 证书，外呼统一跳过证书校验
 SSL_CTX = ssl._create_unverified_context()
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -144,6 +148,21 @@ def _http_tls(url, referer=None, xhr=False, timeout=20):
 def load_key():
     with open(CONFIG, "r", encoding="utf-8") as f:
         return f.read().strip()
+
+
+def load_juhe_key():
+    """读取聚合数据 key（juhe_key.txt，git 忽略）；未配置返回 None。"""
+    try:
+        with open(JUHE_KEY_FILE, "r", encoding="utf-8") as f:
+            k = f.read().strip()
+        return k or None
+    except Exception:
+        return None
+
+
+def _mins(s):
+    p = (s or "").split(":")
+    return int(p[0]) * 60 + int(p[1]) if len(p) == 2 else 0
 
 
 # ===================== 12306 火车票 =====================
@@ -332,6 +351,58 @@ def query_tickets(from_text, to_text, date_str):
         "fromStations": [n for n, _ in from_stations],
         "toStations": [n for n, _ in to_stations],
         "count": len(merged), "trains": merged,
+        "source": "12306",
+    }
+
+
+def _juhe_query(from_text, to_text, date_str):
+    """聚合数据站到站时刻表（兜底数据源）。返回结构与 query_tickets 对齐，方便前端复用。"""
+    key = load_juhe_key()
+    if not key:
+        return {"ok": False, "error": "聚合数据兜底未配置（缺少 juhe_key.txt）"}
+    url = (JUHE_URL + "?key=" + urllib.parse.quote(key)
+           + "&search_type=1"
+           + "&departure_station=" + urllib.parse.quote(from_text)
+           + "&arrival_station=" + urllib.parse.quote(to_text)
+           + "&date=" + date_str)
+    try:
+        data = json.loads(http_get(url))
+    except Exception as e:
+        return {"ok": False, "error": "聚合数据接口调用失败：%s" % e}
+    if data.get("reason") != "success" and data.get("error_code", 0) != 0:
+        return {"ok": False, "error": "聚合数据接口返回异常：%s" % (data.get("reason") or data.get("error_code"))}
+    rows = data.get("result") or []
+    if not rows:
+        return {"ok": False, "error": "%s %s 到 %s 聚合数据也没查到车次" % (date_str, from_text, to_text)}
+    trains = []
+    for r in rows:
+        seats = []
+        for p in (r.get("prices") or []):
+            num = p.get("num") or ""
+            val = "有" if num == "有" else ("--" if num in ("无", "") else str(num))
+            seats.append({
+                "label": p.get("seat_name") or "",
+                "value": val,
+                "price": p.get("price"),
+            })
+        trains.append({
+            "code": r.get("train_no"),
+            "fromStation": r.get("departure_station"),
+            "toStation": r.get("arrival_station"),
+            "depart": r.get("departure_time"),
+            "arrive": r.get("arrival_time"),
+            "duration": r.get("duration"),
+            "canBuy": r.get("enable_booking") == "Y",
+            "seats": seats,
+            "trainNo": r.get("train_no"),
+        })
+    trains.sort(key=lambda x: _mins(x["depart"]))
+    return {
+        "ok": True, "date": date_str,
+        "fromQuery": from_text, "toQuery": to_text,
+        "fromStations": [from_text], "toStations": [to_text],
+        "count": len(trains), "trains": trains,
+        "source": "juhe",
     }
 
 
@@ -811,7 +882,16 @@ class Handler(BaseHTTPRequestHandler):
                 if err:
                     self._send({"ok": False, "error": err}, 400)
                     return
-                self._send(query_tickets(fr, to, date))
+                res = query_tickets(fr, to, date)
+                # 12306 直连失败（限流/无数据/异常）→ 聚合数据兜底，保证"查车次"永远有结果
+                if not res.get("ok"):
+                    juhe = _juhe_query(fr, to, date)
+                    if juhe.get("ok"):
+                        juhe["note"] = "12306 直连本次未取到数据，已自动切换「聚合数据」查询"
+                        res = juhe
+                    else:
+                        res["fallbackError"] = juhe.get("error")
+                self._send(res)
             elif parsed.path == "/cheapest":
                 date = qs.get("date", [datetime.date.today().strftime("%Y-%m-%d")])[0]
                 raw = qs.get("q", [""])[0]

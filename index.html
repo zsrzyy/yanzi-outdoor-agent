@@ -2163,6 +2163,7 @@ function renderTrainCode(d){
 
 function renderTickets(d){
   var MAX = 30;
+  var isJuhe = d.source === 'juhe';
   var rows = d.trains.slice(0, MAX).map(function(t){
     var tags = t.seats.map(function(s){
       return '<span class="seat-tag '+seatClass(s.value)+'"><b>'+esc(s.label)+'</b>'+esc(s.value)+'</span>';
@@ -2176,12 +2177,16 @@ function renderTickets(d){
     '</tr>';
   }).join('');
   var more = d.trains.length > MAX ? '<div class="tr-more">仅展示前 '+MAX+' 趟，共 '+d.trains.length+' 趟；可告诉我时间段（如上午）或车型（高铁 / 普速）帮你筛选。</div>' : '';
-  return '<div class="tr-title">'+esc(d.fromQuery)+' → '+esc(d.toQuery)+' 火车余票<span class="tr-badge">12306</span></div>'+
-    '<div class="tr-sub">'+esc(d.date)+(d.periodLabel ? '「'+esc(d.periodLabel)+'」' : '')+' · 共查到 <b style="color:var(--green-deep)">'+d.count+'</b> 趟列车，按发车时间排序；覆盖 '+d.fromStations.join('、')+' 与 '+d.toStations.join('、')+' 各站</div>'+
+  var badge = isJuhe ? '聚合数据' : '12306';
+  var note = isJuhe
+    ? (d.note ? esc(d.note) + '；' : '') + '余票「有」表示可预订，数字为剩余张数，价格为参考价；购票请以 12306 官方为准。'
+    : '余票为 12306 实时数据：「有」表示票量充足，数字为剩余张数，「候补 / --」可在 12306 提交候补；购票请以 12306 官方为准。';
+  return '<div class="tr-title">'+esc(d.fromQuery)+' → '+esc(d.toQuery)+' 火车余票<span class="tr-badge">'+badge+'</span></div>'+
+    '<div class="tr-sub">'+esc(d.date)+(d.periodLabel ? '「'+esc(d.periodLabel)+'」' : '')+' · 共查到 <b style="color:var(--green-deep)">'+d.count+'</b> 趟列车，按发车时间排序'+(isJuhe ? '' : '；覆盖 '+d.fromStations.join('、')+' 与 '+d.toStations.join('、')+' 各站')+'</div>'+
     '<div class="tr-scroll"><table class="tr-table"><thead><tr><th>车次</th><th>区间</th><th>发/到</th><th>历时</th><th>余票</th></tr></thead><tbody>'+
     rows+'</tbody></table></div>'+
     more+
-    '<div class="tr-note">余票为 12306 实时数据：「有」表示票量充足，数字为剩余张数，「候补 / --」可在 12306 提交候补；购票请以 12306 官方为准。</div>';
+    '<div class="tr-note">'+note+'</div>';
 }
 
 function cpArrTag(day){
@@ -2484,7 +2489,7 @@ async function runAgentTool(name, args){
     return {
       payload: d,
       cardHtml: ch,
-      badge: '12306 实时数据',
+      badge: (d.source === 'juhe' ? '聚合数据' : '12306 实时数据'),
       summary: date + (d.periodLabel ? '（' + d.periodLabel + '）' : '') + ' ' + d.fromQuery + '→' + d.toQuery + ' 共 ' + d.count + ' 趟',
     };
   }
