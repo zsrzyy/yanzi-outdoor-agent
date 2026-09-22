@@ -182,6 +182,8 @@
     display:flex;flex-direction:column;gap:10px;
   }
   .faq-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#BFD9C4}
+  .faq-card.faq-guide{border-color:var(--green);background:linear-gradient(135deg,#F2FAF3,#FFFFFF)}
+  .faq-card.faq-guide .faq-cat{color:var(--green-deep)}
   .faq-cat{
     display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
     font-size:11px;font-weight:700;color:var(--orange-deep);
@@ -272,6 +274,19 @@
   .cart-clear:hover{color:var(--ink)}
   .cart-mask{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:65;opacity:0;pointer-events:none;transition:opacity .28s}
   .cart-mask.open{opacity:1;pointer-events:auto}
+
+  /* ===== 使用指南卡 ===== */
+  .guide-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+  .guide-lead{font-size:13px;color:var(--ink-soft);line-height:1.7;background:var(--bg);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+  .guide-sec{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .guide-sec-h{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;color:var(--ink)}
+  .guide-sec-h svg{width:16px;height:16px;color:var(--green);flex-shrink:0}
+  .guide-sec-d{font-size:12.5px;color:var(--muted);line-height:1.65;margin:6px 0 8px}
+  .guide-try{display:flex;flex-wrap:wrap;gap:6px}
+  .guide-q{border:1px dashed #BFD9C4;background:#F6FBF7;color:var(--green-deep);font-size:12px;padding:6px 10px;border-radius:8px;cursor:pointer;transition:background .15s,border-color .15s}
+  .guide-q:hover{background:#EAF5EC;border-color:var(--green)}
+  .guide-tip{font-size:12px;color:var(--muted);line-height:1.7;background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;padding:10px 12px;margin-top:12px}
+  .guide-tip b{color:var(--orange-deep)}
 
   .w-foot{margin-top:26px;animation:fadeUp .5s .35s ease both}
   .disclaimer{font-size:12px;color:#8AA393;line-height:1.7}
@@ -1217,6 +1232,7 @@ var KB = [
 
 /* ================= FAQ ================= */
 var FAQS = [
+  { id:'guide', icon:'sparkle', cat:'使用指南', q:'怎么使用燕子户外助手？', guide:true },
   { id:'act', icon:'flag', cat:'活动报名', q:'最近有什么值得参加的徒步活动？' },
   { id:'gear', icon:'tent', cat:'装备指南', q:'新手露营需要准备哪些装备？' },
   { id:'safe', icon:'mountain', cat:'安全常识', q:'第一次登山有什么注意事项？' },
@@ -1638,9 +1654,9 @@ function renderWelcome(){
       '<div class="w-sub">关于活动、装备或户外攻略，你想问什么？</div>'+
       '<span class="w-scope">'+ICONS.docs+'全部资料</span>'+
       '<div id="composerSlot" style="width:100%"></div>'+
-      '<div class="faq-grid">'+
+      '      <div class="faq-grid">'+
         FAQS.map(function(f){
-          return '<button class="faq-card" data-q="'+esc(f.q)+'"'+(f.url ? ' data-url="'+esc(f.url)+'"' : '')+'>'+
+          return '<button class="faq-card'+(f.guide ? ' faq-guide' : '')+'" data-q="'+esc(f.q)+'"'+(f.url ? ' data-url="'+esc(f.url)+'"' : '')+(f.guide ? ' data-guide="1"' : '')+'>'+
             '<span class="faq-cat">'+ICONS[f.icon]+esc(f.cat)+(f.url ? '<span class="faq-ext">外链</span>' : '')+'</span>'+
             '<span class="faq-q">'+esc(f.q)+'</span>'+
             '<span class="faq-go">'+(f.url ? '去打开' : '去看看')+ICONS.arrow+'</span>'+
@@ -1659,6 +1675,7 @@ function renderWelcome(){
     card.onclick = function(){
       var url = card.getAttribute('data-url');
       if(url){ window.open(url, '_blank'); return; }
+      if(card.getAttribute('data-guide')){ showGuide(); return; }
       send(card.getAttribute('data-q'));
     };
   });
@@ -1738,6 +1755,53 @@ function appendAiBubble(content, cardHtml, badge){
   thread.appendChild(d);
   scrollBottom();
   return d;
+}
+
+/* ================= 使用指南 ================= */
+function guideCardHtml(){
+  function sec(icon, title, desc, tries){
+    return '<div class="guide-sec">'+
+      '<div class="guide-sec-h">'+ICONS[icon]+esc(title)+'</div>'+
+      '<div class="guide-sec-d">'+desc+'</div>'+
+      '<div class="guide-try">'+tries.map(function(t){
+        return '<button class="guide-q" data-q="'+esc(t)+'">'+esc(t)+'</button>';
+      }).join('')+'</div>'+
+    '</div>';
+  }
+  var html = '<div class="guide-card">';
+  html += '<div class="guide-lead">你好，我是小燕 🐦 像跟领队聊天一样直接问我就行。下面是我会做的事——<b>点任意绿色示例就能直接体验</b>。</div>';
+  html += sec('ticket', '火车票查询',
+    '自动匹配城市全部车站，查实时车次、余票、经停时刻；还能比价直达与中转，找最便宜方案。',
+    ['徐州到济南的火车有哪些？','G101次列车经过哪些站？','从成都到大理最便宜的方案？']);
+  html += sec('sun', '天气预报',
+    '和风天气实时数据：现在天气、24 小时逐时温度曲线、日出日落、7 天概览；还能按你的定位查"附近"。',
+    ['明天五台山天气怎么样？','我附近的天气适合徒步吗？','徐州明天几点日出？']);
+  html += sec('compass', '行程规划',
+    '告诉我目的地和天数，我生成一份按天分时段的行程卡，可一键导出 .txt 发给队友或家人。',
+    ['帮我规划五台山两日行程','规划一个周末露营行程，两个人']);
+  html += sec('bag', '装备推荐与清单',
+    '按活动、季节、天数推荐装备，卡片上一键「加入装备清单」，攒好后导出成完整购买清单。',
+    ['新手露营需要哪些装备？','38升重装背包推荐几款']);
+  html += sec('docs', '户外知识库',
+    '路线导航、露营生火、饮食饮水、药品防护、无痕山野、保险下山、高海拔、十条铁律等 13 个板块，随时问。',
+    ['第一次登山有什么注意事项？','无痕山野是什么原则？']);
+  html += sec('chat', '日常咨询',
+    '活动推荐、装备保养、难度评估、安全提示……户外相关的任何问题都可以直接聊。',
+    ['最近有什么值得参加的徒步活动？','装备怎么保养才能用得久？']);
+  html += '<div class="guide-tip"><b>小提示：</b>查车次 / 天气需要先双击启动 <b>start-proxy.bat</b>（本地数据代理）；对话记忆保留 3 天自动清理；右下角购物车可随时查看已选装备。数据仅供参考，请以 12306 / 和风天气官方为准。</div>';
+  html += '</div>';
+  return html;
+}
+function showGuide(){
+  if(generating){ return; }
+  if(currentView !== 'chat'){ renderChatView(); }
+  var q = '怎么使用燕子户外助手？';
+  appendUserBubble(q);
+  history.push({ role:'user', content:q });
+  var card = guideCardHtml();
+  appendAiBubble('', card, '使用指南');
+  history.push({ role:'assistant', content:'已为你准备了一份使用指南（上方卡片中的示例可直接点击体验）。', cardHtml:card, badge:'使用指南' });
+  saveCurrentConv();
 }
 
 /* ================= Markdown 轻量渲染（先转义，防注入） ================= */
@@ -2785,7 +2849,7 @@ $('cartClear').addEventListener('click', function(){
   toast('清单已清空');
 });
 
-/* 全局点击委托：处理动态渲染的「加入清单」「导出行程卡」按钮 */
+/* 全局点击委托：处理动态渲染的「加入清单」「导出行程卡」「指南示例问句」按钮 */
 document.addEventListener('click', function(e){
   var add = e.target.closest('.shop-add');
   if(add){
@@ -2801,6 +2865,12 @@ document.addEventListener('click', function(e){
   if(exp){
     var raw = decodeURIComponent(exp.getAttribute('data-trip') || '');
     if(raw){ exportTrip(raw); }
+    return;
+  }
+  var gq = e.target.closest('.guide-q');
+  if(gq){
+    var q = gq.getAttribute('data-q');
+    if(q){ send(q); }
     return;
   }
 });
