@@ -176,6 +176,15 @@
     display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:28px;width:100%;
     animation:fadeUp .5s .3s ease both;
   }
+  .proxy-banner{
+    width:100%;margin-top:18px;padding:12px 16px;border-radius:var(--r);
+    background:#FFF7E8;border:1px solid #F2C879;color:#7A5314;
+    font-size:13px;line-height:1.7;text-align:left;
+    animation:fadeUp .4s ease both;
+  }
+  .proxy-banner a{color:#B4690E;font-weight:700;text-decoration:underline;cursor:pointer}
+  .proxy-banner.stale{background:#FDEEEE;border-color:#E8A5A5;color:#7C2D2D}
+  .proxy-banner.stale a{color:#A33}
   .faq-card{
     background:var(--card);border:1px solid var(--line);border-radius:var(--r);
     padding:16px 18px 14px;text-align:left;transition:all .2s;
@@ -1669,6 +1678,7 @@ function renderWelcome(){
       '<div class="w-sub">关于活动、装备或户外攻略，你想问什么？</div>'+
       '<span class="w-scope">'+ICONS.docs+'全部资料</span>'+
       '<div id="composerSlot" style="width:100%"></div>'+
+      '<div id="proxyBanner" class="proxy-banner" style="display:none"></div>'+
       '      <div class="faq-grid">'+
         FAQS.map(function(f){
           return '<button class="faq-card'+(f.guide ? ' faq-guide' : '')+'" data-q="'+esc(f.q)+'"'+(f.url ? ' data-url="'+esc(f.url)+'"' : '')+(f.guide ? ' data-guide="1"' : '')+'>'+
@@ -1696,6 +1706,27 @@ function renderWelcome(){
   });
   $('btnBrowse').onclick = renderCatalog;
   askInput.focus();
+  /* 代理状态横幅：进页面即探测，未启动/旧版时醒目提示（让问题在提问前可见） */
+  var banner = $('proxyBanner');
+  function checkProxyBanner(){
+    resolveProxy().then(function(){
+      if(!banner || !banner.isConnected){ return; }
+      if(proxyHealth.status === 'ok'){ banner.style.display = 'none'; banner.innerHTML = ''; return; }
+      banner.style.display = '';
+      banner.className = 'proxy-banner' + (proxyHealth.status === 'stale' ? ' stale' : '');
+      banner.innerHTML = proxyHealth.status === 'stale'
+        ? '<b>⚠ 本地数据助手是旧版本</b>：车票/天气查询会失败。请关闭所有旧的黑色命令行窗口，重新双击 <b>start-proxy.bat</b>，然后<a id="pbRetry">点此重新检测</a>。'
+        : '<b>⚠ 本地数据助手未启动</b>：查车次/天气前请先双击项目文件夹里的 <b>start-proxy.bat</b>（黑色窗口保持打开）。启动后<a id="pbRetry">点此重新检测</a>即可，无需刷新页面。';
+      var retry = $('pbRetry');
+      if(retry){
+        retry.onclick = function(){
+          banner.innerHTML = '<span style="opacity:.7">正在重新检测…</span>';
+          setTimeout(checkProxyBanner, 300);
+        };
+      }
+    });
+  }
+  checkProxyBanner();
 }
 
 function renderChatView(){
@@ -2326,7 +2357,12 @@ var AGENT_TOOLS = [
 /* 工具结果 → 交给模型阅读的紧凑文本（避免塞入巨量表格数据） */
 function toolResultText(name, payload){
   if(!payload){ return '（无返回数据）'; }
-  if(payload.ok === false){ return '【查询失败】' + (payload.error || '未知错误'); }
+  if(payload.ok === false){
+    if(payload.error === '__PROXY_DOWN__'){
+      return '【本地数据代理未启动】无法获取实时车次/天气数据。请告诉用户：请在 yanzi-outdoor-agent 文件夹双击 start-proxy.bat 启动本地数据助手，启动后无需刷新页面，直接重新提问即可。不要编造任何车次、票价或天气数据。';
+    }
+    return '【查询失败】' + (payload.error || '未知错误');
+  }
   if(name === 'query_trains'){
     var head = payload.date + ' ' + payload.fromQuery + ' → ' + payload.toQuery + '，共 ' + payload.count + ' 趟列车';
     if(payload.periodLabel){ head += '（时段：' + payload.periodLabel + '）'; }
@@ -2374,6 +2410,9 @@ function fixProxyError(payload){
 }
 
 /* 工具执行器：返回 { payload, cardHtml, summary, badge } */
+function isNetErr(e){
+  return /Failed to fetch|NetworkError|Load failed|ERR_CONNECTION|fetch failed/i.test(String((e && e.message) || e || ''));
+}
 async function runAgentTool(name, args){
   args = args || {};
   if(name === 'query_trains'){
@@ -2442,11 +2481,20 @@ async function runAgentTool(name, args){
     var wk = null, usedLoc = loc;
     /* 定位查询：location 填 @nearby 时用浏览器定位（经度,纬度） */
     if(loc === '@nearby'){
+      var pos = null;
       try{
-        var pos = await getUserLocation();
+        pos = await getUserLocation();
         usedLoc = pos.lon + ',' + pos.lat;
-        wk = await fetchWeather(usedLoc);
-      }catch(_g){ wk = null; }
+      }catch(_g){ pos = null; }
+      if(pos){
+        try{
+          wk = await fetchWeather(usedLoc);
+        }catch(_wf){
+          /* 代理没跑：明确上报，不要伪装成"定位/城市问题" */
+          if(isNetErr(_wf)){ return { payload: { ok:false, error:'__PROXY_DOWN__' } }; }
+          wk = null;
+        }
+      }
       if(!wk){ return { payload: { ok:false, error:'定位失败或当前坐标附近无天气数据，请手动输入城市或景区名' } }; }
     } else {
       /* 和风 GeoAPI 对"五台山北台顶"这类带山顶后缀的长名匹配不到：
@@ -2461,7 +2509,11 @@ async function runAgentTool(name, args){
           wk = await fetchWeather(candidates[ci] || null);
           usedLoc = candidates[ci];
           break;
-        }catch(_we){ wk = null; }
+        }catch(_we){
+          /* 代理没跑：立即上报（关键修复——此前网络错误被吞，误报成"没查到该城市天气"） */
+          if(isNetErr(_we)){ return { payload: { ok:false, error:'__PROXY_DOWN__' } }; }
+          wk = null;
+        }
       }
       if(!wk){
         return { payload: { ok:false, error:'没查到「' + (loc || '徐州') + '」的天气，请换一个更常见的城市或景区名试试' } };
