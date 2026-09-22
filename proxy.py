@@ -766,7 +766,16 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         qs = urllib.parse.parse_qs(parsed.query)
         try:
-            if parsed.path == "/weather":
+            if parsed.path == "/health":
+                # 健康检查：返回版本与能力清单，前端据此判断代理是否完整可用
+                self._send({
+                    "ok": True,
+                    "name": "yanzi-outdoor-proxy",
+                    "version": "2.0.0",
+                    "routes": ["/health", "/weather", "/train", "/tickets", "/cheapest"],
+                    "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                })
+            elif parsed.path == "/weather":
                 self._send(self.api_weather())
             elif parsed.path == "/train":
                 date = qs.get("date", [datetime.date.today().strftime("%Y-%m-%d")])[0]
@@ -944,7 +953,32 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print("燕子户外本地代理已启动：http://%s:%s" % (HOST, PORT))
-    print("能力：/chat 问答 · /weather 天气 · /train 车次时刻 · /tickets 站站余票 · /cheapest 最便宜方案")
-    print("请保持本窗口打开，再用浏览器打开 index.html")
-    ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    # 端口自愈：优先用 YANZI_PORT，被占用则依次尝试 8899/8901/8902/8903
+    ports = []
+    if os.environ.get("YANZI_PORT"):
+        ports.append(int(os.environ["YANZI_PORT"]))
+    for p in (8899, 8901, 8902, 8903):
+        if p not in ports:
+            ports.append(p)
+
+    server = None
+    bound_port = None
+    for p in ports:
+        try:
+            server = ThreadingHTTPServer((HOST, p), Handler)
+            bound_port = p
+            break
+        except OSError as e:
+            print("[跳过] 端口 %s 不可用（%s），尝试下一个..." % (p, e))
+            server = None
+    if server is None:
+        print("错误：8899/8901/8902/8903 全部被占用，无法启动。请先关闭旧代理窗口。")
+        sys.exit(1)
+
+    print("=" * 48)
+    print("燕子户外本地代理已启动：http://%s:%s" % (HOST, bound_port))
+    print("能力：/health 健康检查 · /weather 天气 · /train 车次时刻")
+    print("      /tickets 站站余票 · /cheapest 最便宜方案")
+    print("前端会自动发现本端口，无需手动配置。请保持本窗口打开。")
+    print("=" * 48)
+    server.serve_forever()

@@ -671,31 +671,46 @@ var $ = function(id){ return document.getElementById(id); };
 var PROXY = 'http://127.0.0.1:8899';
 var PROXY_CANDIDATES = ['http://127.0.0.1:8899', 'http://127.0.0.1:8901', 'http://127.0.0.1:8902', 'http://127.0.0.1:8903'];
 var proxyResolved = false;
+var _proxyLastOk = 0;   // 上次成功探测时间戳
+/* 代理健康状态：ok=完整可用 / stale=旧版缺路由 / down=未启动 */
+var proxyHealth = { status: 'unknown', base: PROXY };
 async function resolveProxy(){
-  if(proxyResolved){ return PROXY; }
-  var preferred = null, fallback = null;
+  /* 成功过一次后，3 秒内直接复用，避免每次提问都探测；失败则每次重新探测 */
+  if(proxyResolved && proxyHealth.status === 'ok' && (Date.now() - _proxyLastOk) < 3000){
+    return PROXY;
+  }
+  var stale = null;
   for(var i = 0; i < PROXY_CANDIDATES.length; i++){
     var base = PROXY_CANDIDATES[i];
     try{
       var ctl = new AbortController();
-      var timer = setTimeout(function(){ ctl.abort(); }, 3000);
-      var r = await fetch(base + '/weather', { signal: ctl.signal });
+      var timer = setTimeout(function(){ ctl.abort(); }, 2500);
+      var r = await fetch(base + '/health', { signal: ctl.signal });
       clearTimeout(timer);
-      var j = await r.json();
-      if(j && j.ok === true && j.now && j.daily && j.daily.length){
-        /* 完全健康：数据齐全，直接采用 */
-        PROXY = base;
-        proxyResolved = true;
-        return PROXY;
+      if(r.ok){
+        var j = await r.json().catch(function(){ return null; });
+        if(j && j.ok === true && j.name === 'yanzi-outdoor-proxy'){
+          /* 完整可用：版本正确的代理 */
+          PROXY = base;
+          proxyResolved = true;
+          _proxyLastOk = Date.now();
+          proxyHealth = { status: 'ok', base: base, version: j.version };
+          return PROXY;
+        }
+        /* 有响应但不是我们的 /health（旧版代理没这个路由） */
+        stale = stale || base;
       }
-      if(j && (j.ok === true || j.now) && !preferred){
-        /* 部分响应：记下来作备选（比如天气正好限流），但继续找更好的 */
-        preferred = base;
-      }
-    }catch(_e){}
+    }catch(_e){
+      /* 连接失败：该端口无代理 */
+    }
   }
-  PROXY = preferred || fallback || PROXY;
-  proxyResolved = true;
+  proxyResolved = false;   /* 未找到可用代理，下次提问重新探测（用户可能中途启动了） */
+  if(stale){
+    proxyHealth = { status: 'stale', base: stale };
+  } else {
+    proxyHealth = { status: 'down', base: PROXY };
+  }
+  PROXY = stale || PROXY;
   return PROXY;
 }
 
@@ -2194,7 +2209,10 @@ function renderCheapest(d){
 
 /* ================= Agent 工具层：给 DeepSeek 用的 Function Calling ================= */
 function proxyDownHtml(){
-  return '<p class="tr-err">连不上本地助手（已尝试端口 8899 / 8901 / 8902 / 8903）。<br><br>请打开 yanzi-outdoor-agent 文件夹，<b>双击「start-proxy.bat」</b>启动数据代理，再重新提问。<br>若窗口一闪而过，说明端口被占用了，脚本会自动换到 8901 并提示新地址。</p>';
+  if(proxyHealth.status === 'stale'){
+    return '<p class="tr-err">检测到本地助手是<b>旧版本</b>（缺少数据接口）。<br><br>请关闭所有旧的黑色命令行窗口，然后重新双击 <b>start-proxy.bat</b>，再问一次。</p>';
+  }
+  return '<p class="tr-err">本地数据助手未启动（车票/天气数据接口）。<br><br>请在 yanzi-outdoor-agent 文件夹里<b>双击「start-proxy.bat」</b>，看到黑色窗口保持打开后再问。<br>启动后无需刷新，直接重新提问即可自动连上。</p>';
 }
 function normDateArg(v){
   if(!v){ return null; }
@@ -2350,7 +2368,7 @@ function toolResultText(name, payload){
    避免模型把它误解成"预售期没到"之类的错误归因。 */
 function fixProxyError(payload){
   if(payload && payload.ok === false && /not found/i.test(String(payload.error || ''))){
-    return { ok:false, error:'本地代理版本过旧，缺少数据接口。请关闭所有旧的代理窗口（黑色命令行），重新双击 start-proxy.bat，然后再问一次。' };
+    return { ok:false, error:'本地助手版本过旧，缺少数据接口。请关闭所有旧的代理窗口，重新双击 start-proxy.bat 后再试。' };
   }
   return payload;
 }
