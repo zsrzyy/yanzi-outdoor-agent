@@ -2236,8 +2236,11 @@ function cpTransferCard(date, p){
 }
 function renderCheapest(d){
   var b = d.best, html = '';
-  html += '<div class="tr-title">'+esc(d.fromQuery)+' → '+esc(d.toQuery)+' 最便宜方案<span class="tr-badge">12306 实时票价</span></div>';
-  html += '<div class="tr-sub">'+esc(d.date)+' · 直达可购 '+d.directCount+' 趟 · 中转方案 '+d.transferCount+' 个；中转票价为两段最低可售席别合计</div>';
+  var isJuhe = d.source === 'juhe';
+  html += '<div class="tr-title">'+esc(d.fromQuery)+' → '+esc(d.toQuery)+' 最便宜方案<span class="tr-badge">'+(isJuhe ? '聚合数据' : '12306 实时票价')+'</span></div>';
+  html += '<div class="tr-sub">'+esc(d.date)+' · 直达可购 '+d.directCount+' 趟'+(isJuhe
+    ? '（聚合数据仅提供直达，不含中转比价）'
+    : ' · 中转方案 '+d.transferCount+' 个；中转票价为两段最低可售席别合计')+'</div>';
   html += '<div class="cp-hero">'+(b.kind === 'direct' ? cpHeroDirect(b) : cpHeroTransfer(d.date, b))+'</div>';
   if(d.direct && d.direct.top && d.direct.top.length){
     html += '<div class="cp-sec">直达备选 <span class="cnt">按票价从低到高</span></div>';
@@ -2255,7 +2258,9 @@ function renderCheapest(d){
     html += '<div class="cp-sec">中转备选 <span class="cnt">一次换乘 · 已预留换乘时间</span></div>';
     html += rest.map(function(p){ return cpTransferCard(d.date, p); }).join('');
   }
-  html += '<div class="tr-note">票价与余票来自 12306 实时查询；中转支持同站 / 同城换乘一次（同站至少预留 25 分钟、同城至少 90 分钟）。购票请在 12306 使用「联程 / 中转」分别购买两段车票，车次、站台与票价以 12306 为准。</div>';
+  html += '<div class="tr-note">'+(isJuhe
+    ? esc(d.note || '本结果由聚合数据提供，仅供参考；购票请以 12306 官方为准。')
+    : '票价与余票来自 12306 实时查询；中转支持同站 / 同城换乘一次（同站至少预留 25 分钟、同城至少 90 分钟）。购票请在 12306 使用「联程 / 中转」分别购买两段车票，车次、站台与票价以 12306 为准。')+'</div>';
   return html;
 }
 
@@ -2517,7 +2522,7 @@ async function runAgentTool(name, args){
     return {
       payload: res3,
       cardHtml: renderCheapest(res3),
-      badge: '12306 实时数据',
+      badge: (res3.source === 'juhe' ? '聚合数据' : '12306 实时数据'),
       summary: d3 + ' ' + res3.fromQuery + '→' + res3.toQuery + ' 最便宜：' + (b3.kind === 'direct' ? ('直达 ' + b3.code + ' ¥' + (b3.best && b3.best.price)) : ('中转经' + b3.hubCity + ' ¥' + b3.total)),
     };
   }

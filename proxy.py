@@ -355,6 +355,20 @@ def query_tickets(from_text, to_text, date_str):
     }
 
 
+# 聚合数据免费版限流：每秒最多 1 次调用。全局限速，避免自己撞上限流。
+_JUHE_LOCK = threading.Lock()
+_JUHE_LAST = [0.0]
+_JUHE_MIN_INTERVAL = 1.1
+
+
+def _juhe_gate():
+    with _JUHE_LOCK:
+        wait = _JUHE_MIN_INTERVAL - (time.time() - _JUHE_LAST[0])
+        if wait > 0:
+            time.sleep(wait)
+        _JUHE_LAST[0] = time.time()
+
+
 def _juhe_query(from_text, to_text, date_str):
     """聚合数据站到站时刻表（兜底数据源）。返回结构与 query_tickets 对齐，方便前端复用。"""
     key = load_juhe_key()
@@ -365,10 +379,26 @@ def _juhe_query(from_text, to_text, date_str):
            + "&departure_station=" + urllib.parse.quote(from_text)
            + "&arrival_station=" + urllib.parse.quote(to_text)
            + "&date=" + date_str)
-    try:
-        data = json.loads(http_get(url))
-    except Exception as e:
-        return {"ok": False, "error": "聚合数据接口调用失败：%s" % e}
+    # 聚合数据免费版限流：每秒最多 1 次。主动节流 + 撞限流自动重试一次。
+    data = None
+    for attempt in range(2):
+        _juhe_gate()
+        try:
+            data = json.loads(http_get(url))
+        except Exception as e:
+            if attempt == 1:
+                return {"ok": False, "error": "聚合数据接口调用失败：%s" % e}
+            time.sleep(1.5)
+            continue
+        reason = str(data.get("reason") or "")
+        if "频率" in reason or "限制" in reason:
+            if attempt == 0:
+                time.sleep(1.5)
+                continue
+            return {"ok": False, "error": "聚合数据调用频率受限（免费版每秒 1 次），请稍后重试"}
+        break
+    if data is None:
+        return {"ok": False, "error": "聚合数据无响应"}
     if data.get("reason") != "success" and data.get("error_code", 0) != 0:
         return {"ok": False, "error": "聚合数据接口返回异常：%s" % (data.get("reason") or data.get("error_code"))}
     rows = data.get("result") or []
@@ -403,6 +433,62 @@ def _juhe_query(from_text, to_text, date_str):
         "fromStations": [from_text], "toStations": [to_text],
         "count": len(trains), "trains": trains,
         "source": "juhe",
+    }
+
+
+def _juhe_cheapest(fr, to, date_str):
+    """聚合数据兜底的最便宜方案：只有直达比价（聚合无中转能力），结构对齐 query_cheapest。"""
+    jr = _juhe_query(fr, to, date_str)
+    if not jr.get("ok"):
+        return {"ok": False, "error": jr.get("error") or "聚合数据查询失败"}
+    priced = []
+    for t in jr.get("trains") or []:
+        opts = []
+        for s in (t.get("seats") or []):
+            if s.get("price") is None:
+                continue
+            avail = s.get("value") or "--"
+            opts.append({
+                "label": s.get("label") or "",
+                "avail": avail,
+                "price": s["price"],
+                "wuzuo": "无座" in (s.get("label") or ""),
+                "bookable": avail != "--",
+            })
+        if not opts:
+            continue
+        # 有票的优先，其次按价格升序；无座排在等价席别之后
+        opts.sort(key=lambda o: (0 if o["bookable"] else 1, o["price"], 1 if o["wuzuo"] else 0))
+        priced.append((t, opts))
+    if not priced:
+        return {"ok": False, "error": "聚合数据未返回带票价的车次"}
+    priced.sort(key=lambda x: x[1][0]["price"])
+
+    def slim(t, o):
+        return {
+            "code": t["code"], "fromStation": t["fromStation"], "toStation": t["toStation"],
+            "depart": t["depart"], "arrive": t["arrive"], "duration": t["duration"],
+            "seatLabel": o["label"], "avail": o["avail"], "price": o["price"],
+        }
+
+    t0, opts0 = priced[0]
+    best_opts = [{"label": o["label"], "avail": o["avail"], "price": o["price"], "wuzuo": o["wuzuo"]}
+                 for o in opts0]
+    best = {
+        "kind": "direct",
+        "code": t0["code"], "fromStation": t0["fromStation"], "toStation": t0["toStation"],
+        "depart": t0["depart"], "arrive": t0["arrive"], "duration": t0["duration"],
+        "best": best_opts[0], "options": best_opts,
+    }
+    return {
+        "ok": True, "date": date_str, "fromQuery": fr, "toQuery": to,
+        "directCount": len(priced), "transferCount": 0,
+        "best": best,
+        "direct": {"count": len(priced), "cheapest": best,
+                   "top": [slim(t, o[0]) for t, o in priced[1:6]]},
+        "transfers": [],
+        "source": "juhe",
+        "note": "12306 直连本次被拦截，以上为「聚合数据」查询结果（仅直达 · 不支持中转比价）",
     }
 
 
@@ -744,6 +830,7 @@ def query_cheapest(raw_text, date_str):
 
     # ---- 直达比价 ----
     direct_payload = None
+    risk_blocked = False  # 12306 是否明确风控拦截（拦截时中转必然也失败，直接兜底更快）
     data = query_tickets(fr, to, date_str)
     if data.get("ok"):
         with ThreadPoolExecutor(max_workers=4) as ex:
@@ -774,18 +861,26 @@ def query_cheapest(raw_text, date_str):
                 },
                 "top": [slim(t) for t in priced[1:6]],
             }
+    elif "限流" in (data.get("error") or ""):
+        risk_blocked = True  # 被风控：中转查询也会被拦，跳过以免白等
 
-    # ---- 中转比价 ----
+    # ---- 中转比价（12306 明确风控时跳过，直接进兜底）----
     transfers = []
-    try:
-        transfers = query_transfers(fr, to, date_str, referer)
-    except Exception:
-        transfers = []
+    if not risk_blocked:
+        try:
+            transfers = query_transfers(fr, to, date_str, referer)
+        except Exception:
+            transfers = []
 
     if not direct_payload and not transfers:
+        # 12306 直连完全失败（风控/无数据）→ 聚合数据兜底（仅直达，聚合无中转比价能力）
+        juhe_res = _juhe_cheapest(fr, to, date_str)
+        if juhe_res.get("ok"):
+            return juhe_res
         return {"ok": False,
-                "error": "%s 到 %s 在 %s 没有查到可购票的直达或中转方案，换个日期试试。"
-                         % (fr, to, date_str)}
+                "error": "%s 到 %s 在 %s 没有查到可购票的直达或中转方案"
+                         "（12306 未返回数据，聚合数据兜底也未成功：%s）"
+                         % (fr, to, date_str, juhe_res.get("error") or "未知原因")}
 
     # ---- 汇总最便宜 ----
     candidates = []
