@@ -285,8 +285,12 @@ def query_tickets(from_text, to_text, date_str):
 
     pairs = [(a, b) for a in from_stations for b in to_stations]
     merged, seen, name_map = [], set(), {}
+    got_any = False  # 是否至少有一个站对拿到了正常载荷（区分限流与真无车）
     with ThreadPoolExecutor(max_workers=6) as ex:
         for data in ex.map(one_pair, pairs):
+            if data is None:
+                continue  # 该站对被风控拦截，未查成
+            got_any = True
             name_map.update(data.get("map", {}))
             for row in data.get("result", []):
                 f = row.split("|")
@@ -312,6 +316,9 @@ def query_tickets(from_text, to_text, date_str):
                     "seatTypes": f[35] if len(f) > 35 else "",
                 })
     if not merged:
+        if not got_any:
+            return {"ok": False,
+                    "error": "12306 正在限流（风控拦截），这次没查成。这不是没有车，请稍等 30 秒后再问一次。"}
         return {"ok": False, "error": "%s %s 到 %s 没查到车次，可能是调度过了或日期超出预售期（15 天）。"
                 % (date_str, from_text, to_text)}
 
@@ -422,6 +429,7 @@ def _station_city(station_name):
 
 
 def _left_query_once(fc, tc, date_str, referer):
+    """查询余票。返回 dict（正常，result 可能为空=真无车）或 None（多次重试仍被风控拦截）。"""
     key = (fc, tc, date_str)
     cached = _cache_get(_TICKET_CACHE, key, 1200)
     if cached is not None:
@@ -446,7 +454,7 @@ def _left_query_once(fc, tc, date_str, referer):
         if hasattr(_tls, "op"):
             del _tls.op
         time.sleep(delays[attempt])
-    return {}
+    return None  # 明确区分：这是"风控没查成"，不是"真没车"
 
 
 def _parse_ticket_row(row, mp):
@@ -492,6 +500,8 @@ def query_transfers(fr, to, date_str, referer):
         h, hname, hcode = hub
         data = _left_query_once(fc, hcode, date_str, referer)
         out = []
+        if data is None:
+            return out  # 被风控拦截，跳过该枢纽
         for row in data.get("result", []):
             t = _parse_ticket_row(row, data.get("map", {}))
             if t:
@@ -526,6 +536,8 @@ def query_transfers(fr, to, date_str, referer):
         hname, hcode = hub_code[h]
         data = _left_query_once(hcode, tc, ds, referer)
         out = []
+        if data is None:
+            return out  # 被风控拦截，跳过
         for row in data.get("result", []):
             t = _parse_ticket_row(row, data.get("map", {}))
             if t:

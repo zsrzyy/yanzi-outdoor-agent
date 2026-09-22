@@ -2413,6 +2413,32 @@ function fixProxyError(payload){
 function isNetErr(e){
   return /Failed to fetch|NetworkError|Load failed|ERR_CONNECTION|fetch failed/i.test(String((e && e.message) || e || ''));
 }
+/* 带超时与自动重试的代理请求：网络错误/非JSON/上游5xx 自动重试一次；
+   业务结果（哪怕 ok:false，如真无车）不重试，原样返回。 */
+async function fetchProxyJson(url, tries){
+  tries = tries || 2;
+  var lastErr = null;
+  for(var i = 0; i < tries; i++){
+    try{
+      var ctl = new AbortController();
+      var timer = setTimeout(function(){ ctl.abort(); }, 45000);
+      var r = await fetch(url, { signal: ctl.signal });
+      clearTimeout(timer);
+      if(r.status >= 500 && i < tries - 1){
+        lastErr = new Error('代理上游错误（HTTP ' + r.status + '）');
+      }else{
+        var j = await r.json().catch(function(){ return null; });
+        if(j){ return j; }
+        lastErr = new Error('代理返回异常（HTTP ' + r.status + '）');
+      }
+    }catch(e){
+      if(e && e.name === 'AbortError'){ lastErr = new Error('代理响应超时'); }
+      else{ lastErr = e; }
+    }
+    if(i < tries - 1){ await new Promise(function(res){ setTimeout(res, 3000); }); }
+  }
+  throw lastErr;
+}
 async function runAgentTool(name, args){
   args = args || {};
   if(name === 'query_trains'){
@@ -2420,8 +2446,7 @@ async function runAgentTool(name, args){
     if(!from || !to){ return { payload: { ok:false, error:'出发地或目的地为空，请告诉我从哪到哪' } }; }
     var date = normDateArg(args.date) || fmtDate(new Date());
     var period = periodToRange(args.period);
-    var r = await fetch(PROXY + '/tickets?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to) + '&date=' + date);
-    var d = fixProxyError(await r.json());
+    var d = fixProxyError(await fetchProxyJson(PROXY + '/tickets?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to) + '&date=' + date));
     if(!d.ok){ return { payload: d }; }
     if(period && d.trains && d.trains.length){
       var inP = d.trains.filter(function(t){
@@ -2451,7 +2476,7 @@ async function runAgentTool(name, args){
     var code = String(args.code || '').trim().toUpperCase();
     if(!/^[GDCZTKLYSP]\d{1,5}$/.test(code)){ return { payload: { ok:false, error:'车次号「' + code + '」格式不对' } }; }
     var dt = normDateArg(args.date) || fmtDate(new Date());
-    var d2 = fixProxyError(await (await fetch(PROXY + '/train?code=' + encodeURIComponent(code) + '&date=' + dt)).json());
+    var d2 = fixProxyError(await fetchProxyJson(PROXY + '/train?code=' + encodeURIComponent(code) + '&date=' + dt));
     if(!d2.ok){ return { payload: d2 }; }
     return {
       payload: d2,
@@ -2465,7 +2490,7 @@ async function runAgentTool(name, args){
     if(!f3 || !t3){ return { payload: { ok:false, error:'出发地或目的地为空' } }; }
     var d3 = normDateArg(args.date) || fmtDate(new Date());
     var q3 = f3 + '到' + t3;
-    var res3 = fixProxyError(await (await fetch(PROXY + '/cheapest?q=' + encodeURIComponent(q3) + '&date=' + d3)).json());
+    var res3 = fixProxyError(await fetchProxyJson(PROXY + '/cheapest?q=' + encodeURIComponent(q3) + '&date=' + d3));
     if(!res3.ok){ return { payload: res3 }; }
     var b3 = res3.best || {};
     return {
