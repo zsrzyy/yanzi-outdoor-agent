@@ -1966,6 +1966,22 @@ async function callDeepSeekOfficial(modelId, context, onDelta, signal){
   return text;
 }
 
+/* 流式优先、中断自动降级：用户到 DeepSeek 的连接不稳定时（bodyStreamBuffer was aborted 之类），
+   流式挂了自动改用非流式一次性请求把完整答案拿回来，不让整轮白费。 */
+async function callStreamOrFallback(modelId, ctx, onDelta, signal){
+  var got = '';
+  try{
+    got = await callDeepSeekOfficial(modelId, ctx, onDelta, signal);
+  }catch(e){
+    if(e && e.name === 'AbortError'){ throw e; }
+    var r = await dsRequestOnce(modelId, ctx, null, signal, 0.8);
+    var c = (r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content) || '';
+    if(c && onDelta){ onDelta(c, false); }
+    got = c;
+  }
+  return got;
+}
+
 /* ================= 天气（和风天气，经本地代理） =================
    地点识别已交给 DeepSeek（query_weather 的 location 参数），此处只负责取数与拼装上下文。 */
 async function fetchWeather(loc){
@@ -2697,7 +2713,7 @@ async function send(text, isRetry){
       if(toolError || true){
         retryCtx.push({ role:'user', content:'（系统提示：本地实时数据工具暂时不可用，请不要编造实时车次或天气数据，可用你已有的户外知识回答，并提醒我启动本地数据代理以获取实时信息。）' });
       }
-      return await callDeepSeekOfficial(officialModel, retryCtx, function(delta, isReasoning){
+      return await callStreamOrFallback(officialModel, retryCtx, function(delta, isReasoning){
         if(isReasoning && !plainBuf){ textEl.innerHTML = '<span class="thinking">💭 小燕正在思考…</span>'; }
         if(delta){ plainBuf += delta; textEl.innerHTML = renderAnswer(plainBuf) + toolCards.join(''); scrollBottom(); }
       }, abortController.signal);
@@ -2723,7 +2739,7 @@ async function send(text, isRetry){
     /* 有工具数据 → 让模型基于真实数据流式总结 */
     if(toolCards.length || usedTools.length){
       var tmp = '';
-      var tail = await callDeepSeekOfficial(officialModel, summaryCtx.concat([{ role:'user', content:'请基于上面工具返回的真实数据，用中文简洁总结关键信息并给出出行建议（不要罗列表格中已有的全部内容，不要编造数据）。' }]), function(delta, isReasoning){
+      var tail = await callStreamOrFallback(officialModel, summaryCtx.concat([{ role:'user', content:'请基于上面工具返回的真实数据，用中文简洁总结关键信息并给出出行建议（不要罗列表格中已有的全部内容，不要编造数据）。' }]), function(delta, isReasoning){
         if(delta){ tmp += delta; textEl.innerHTML = (plainBuf ? renderAnswer(plainBuf) : '') + toolCards.join('') + renderAnswer(tmp); scrollBottom(); }
       }, abortController.signal);
       if(!tmp && !plainBuf){ plainBuf = toolSummary; textEl.innerHTML = toolCards.join('') + '<p>' + esc(plainBuf) + '</p>'; }
