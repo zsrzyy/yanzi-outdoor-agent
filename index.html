@@ -40,7 +40,7 @@
   .sidebar{
     width:var(--sidebar-w);flex-shrink:0;background:var(--ink);color:#E9F3EB;
     display:flex;flex-direction:column;padding:20px 16px;gap:6px;z-index:40;
-    transition:transform .28s ease;
+    transition:transform .28s ease, margin-left .28s ease;
   }
   .brand{display:flex;align-items:center;gap:12px;padding:6px 8px 18px}
   .brand-logo{width:42px;height:42px;border-radius:12px;overflow:hidden;flex-shrink:0}
@@ -86,6 +86,31 @@
   .recent-item span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .recent-item .recent-ttl{margin-left:auto;font-size:10px;opacity:.55;flex-shrink:0;overflow:visible;text-overflow:clip}
   .sidebar-foot{margin-top:auto;padding:10px 12px;font-size:11px;color:#7FA28E;line-height:1.6}
+
+  /* 侧边栏收起状态：整体向左滑出 */
+  .app.collapsed .sidebar{margin-left:calc(-1 * var(--sidebar-w))}
+
+  /* 侧边栏顶部收起按钮（logo 行右侧，参考面板图标样式） */
+  .sb-toggle{
+    margin-left:auto;align-self:center;flex-shrink:0;
+    width:30px;height:30px;border-radius:8px;border:none;background:transparent;
+    color:#9DBBA8;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:background .18s,color .18s;
+  }
+  .sb-toggle:hover{background:rgba(255,255,255,.12);color:#fff}
+  .sb-toggle svg{width:16px;height:16px}
+
+  /* 收起状态下：主区左上角的展开按钮 */
+  .collapse-btn{
+    display:none;flex-shrink:0;
+    width:32px;height:32px;border-radius:9px;border:none;background:transparent;
+    color:var(--ink);cursor:pointer;align-items:center;justify-content:center;
+    transition:background .18s;
+  }
+  .collapse-btn:hover{background:#E8F2E8}
+  .collapse-btn svg{width:17px;height:17px;transition:transform .28s ease}
+  .app.collapsed .collapse-btn{display:flex}
+  .app.collapsed .collapse-btn svg{transform:scaleX(-1)}
 
   /* ===== 主区 ===== */
   .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
@@ -551,6 +576,10 @@
     .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.25)}
     .sidebar.open{transform:none}
     .burger{display:flex}
+    .sb-toggle{display:none}
+    .collapse-btn{display:none}
+    .app.collapsed .collapse-btn{display:none}
+    .app.collapsed .sidebar{margin-left:0}
     .faq-grid,.catalog-grid{grid-template-columns:1fr}
     .detail-meta{margin-left:0}
   }
@@ -571,7 +600,7 @@
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
 
   <!-- ===== 侧边栏 ===== -->
   <aside class="sidebar" id="sidebar">
@@ -581,6 +610,9 @@
         <div class="brand-name">燕子户外</div>
         <div class="brand-sub">SWALLOW OUTDOOR</div>
       </div>
+      <button class="sb-toggle" id="btnCollapse" aria-label="收起侧边栏" title="收起侧边栏">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="9.5" y1="4" x2="9.5" y2="20"/></svg>
+      </button>
     </div>
 
     <button class="nav-item" id="navNew">
@@ -609,6 +641,9 @@
   <!-- ===== 主区 ===== -->
   <main class="main" id="mainArea">
     <header class="topbar">
+      <button class="collapse-btn" id="btnCollapseOut" aria-label="展开侧边栏" title="展开侧边栏">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><line x1="9.5" y1="4" x2="9.5" y2="20"/></svg>
+      </button>
       <button class="burger" id="btnBurger" aria-label="打开菜单">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
@@ -2956,6 +2991,19 @@ $('mask').addEventListener('click', function(){
   $('sidebar').classList.remove('open');
   $('mask').classList.remove('show');
 });
+
+/* 侧边栏收起/展开：侧边栏顶部按钮 + 收起后主区左上角按钮 */
+function toggleSidebar(){
+  var app = $('app');
+  var collapsed = app.classList.toggle('collapsed');
+  localStorage.setItem('yanzi_sidebar_collapsed', collapsed ? '1' : '0');
+}
+$('btnCollapse').addEventListener('click', toggleSidebar);
+$('btnCollapseOut').addEventListener('click', toggleSidebar);
+/* 启动时恢复上次的收起/展开状态 */
+if(localStorage.getItem('yanzi_sidebar_collapsed') === '1'){
+  $('app').classList.add('collapsed');
+}
 
 /* ================= 购物车交互 ================= */
 $('cartFloat').addEventListener('click', openCart);
