@@ -2881,13 +2881,14 @@ initCloud();
 loadModels();
 renderCart();
 var cleaned = cleanupConvs();
-if(convs.length){
-  loadConversation(convs[0].id);
-  toast(cleaned > 0
-    ? '已恢复上次对话（过期对话已自动清理，保留 3 天）'
-    : '已恢复上次对话 · 对话保留 3 天，到期自动清理');
-}else{
-  renderWelcome();
+/* 每次进入都显示首页（欢迎页）；侧边栏「最近对话」保留，点击任意一条即可继续 */
+conversationId = genId();
+localStorage.setItem('yanzi_conv_id', conversationId);
+history = [];
+lastFailedPrompt = null;
+renderWelcome();
+if(cleaned > 0){
+  toast('已自动清理 ' + cleaned + ' 个过期对话（对话保留 3 天）');
 }
 renderRecent('');
 })();
