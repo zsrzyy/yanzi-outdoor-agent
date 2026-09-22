@@ -1,0 +1,2826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>燕子户外 · 户外助手</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23123B28'/%3E%3Cpath d='M10 44 24 22l9 13 6-8 15 17z' fill='%23FF7A00'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --green:#2E8B57;
+    --green-deep:#1F6B43;
+    --ink:#123B28;
+    --ink-soft:#24513B;
+    --orange:#FF7A00;
+    --orange-deep:#E56A00;
+    --orange-soft:#FFF3E8;
+    --bg:#F5FAF4;
+    --card:#FFFFFF;
+    --line:#E2EDE3;
+    --muted:#6B8A79;
+    --warn-bg:#FFF6EE;
+    --warn-line:#FFB980;
+    --sidebar-w:270px;
+    --r:16px;
+    --shadow:0 10px 30px rgba(18,59,40,.08);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,select{font-family:inherit}
+  .app{display:flex;height:100vh;overflow:hidden}
+
+  /* ===== 侧边栏 ===== */
+  .sidebar{
+    width:var(--sidebar-w);flex-shrink:0;background:var(--ink);color:#E9F3EB;
+    display:flex;flex-direction:column;padding:20px 16px;gap:6px;z-index:40;
+    transition:transform .28s ease;
+  }
+  .brand{display:flex;align-items:center;gap:12px;padding:6px 8px 18px}
+  .brand-logo{width:42px;height:42px;border-radius:12px;overflow:hidden;flex-shrink:0}
+  .brand-logo img{width:100%;height:100%;object-fit:cover;display:block}
+  .brand-name{font-weight:900;font-size:20px;letter-spacing:2px;line-height:1.2}
+  .brand-sub{font-size:11px;color:#9FC3AB;letter-spacing:3px;margin-top:2px}
+  .nav-item{
+    display:flex;align-items:center;gap:10px;width:100%;
+    padding:10px 12px;border-radius:10px;font-size:14px;color:#D8E9DD;
+    transition:background .18s,color .18s;text-align:left;
+  }
+  .nav-item:hover{background:rgba(255,255,255,.08)}
+  .nav-item.active{background:var(--orange);color:#fff;font-weight:700}
+  .nav-item svg{width:18px;height:18px;flex-shrink:0}
+  .nav-item .count{margin-left:auto;font-size:12px;color:#9FC3AB}
+  .nav-search{
+    display:flex;align-items:center;gap:10px;padding:4px 12px;color:#8FB89D;
+  }
+  .nav-search svg{width:18px;height:18px;flex-shrink:0}
+  .nav-search input{
+    flex:1;background:transparent;border:none;outline:none;
+    color:#E9F3EB;font-size:14px;padding:6px 0;
+  }
+  .nav-search input::placeholder{color:#7FA28E}
+  .nav-sep{height:1px;background:rgba(255,255,255,.1);margin:12px 8px}
+  .recent-title{font-size:12px;color:#8FB89D;padding:4px 12px 8px;letter-spacing:2px;display:flex;align-items:center;gap:6px}
+  .recent-title .ttl{margin-left:auto;font-size:10px;letter-spacing:0;opacity:.6;font-weight:400}
+  #recentList{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;min-height:60px}
+  #recentList::-webkit-scrollbar{width:4px}
+  #recentList::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);border-radius:2px}
+  .recent-empty{
+    font-size:13px;color:#7FA28E;padding:8px 12px;line-height:1.6;
+    background:rgba(255,255,255,.04);border-radius:10px;margin:0 4px;
+  }
+  .recent-item{
+    display:flex;align-items:center;gap:8px;width:100%;
+    padding:9px 12px;border-radius:10px;font-size:13px;color:#D8E9DD;
+    text-align:left;transition:background .18s;
+  }
+  .recent-item:hover{background:rgba(255,255,255,.08)}
+  .recent-item.active{background:rgba(255,255,255,.14);color:#fff}
+  .recent-item svg{width:14px;height:14px;flex-shrink:0;color:#8FB89D}
+  .recent-item span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .recent-item .recent-ttl{margin-left:auto;font-size:10px;opacity:.55;flex-shrink:0;overflow:visible;text-overflow:clip}
+  .sidebar-foot{margin-top:auto;padding:10px 12px;font-size:11px;color:#7FA28E;line-height:1.6}
+
+  /* ===== 主区 ===== */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+  .topbar{
+    display:flex;align-items:center;gap:12px;padding:14px 24px;
+    background:rgba(245,250,244,.9);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);flex-shrink:0;
+  }
+  .burger{display:none;width:38px;height:38px;border-radius:10px;align-items:center;justify-content:center;color:var(--ink)}
+  .burger:hover{background:#E8F2E8}
+  .burger svg{width:20px;height:20px}
+  .topbar-title{font-size:16px;font-weight:700;letter-spacing:1px}
+  .topbar-actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .model-select{
+    background:var(--card);border:1px solid var(--line);color:var(--ink-soft);
+    border-radius:10px;padding:8px 10px;font-size:12.5px;outline:none;cursor:pointer;max-width:180px;
+  }
+  .model-select:hover{border-color:var(--green)}
+  .topbar-btn{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 16px;border-radius:10px;background:var(--card);color:var(--ink);
+    border:1px solid var(--line);font-size:13px;font-weight:500;transition:all .18s;
+  }
+  .topbar-btn:hover{border-color:var(--green);color:var(--green-deep)}
+  .topbar-btn svg{width:15px;height:15px;color:var(--orange)}
+
+  .content{flex:1;overflow-y:auto;display:flex;justify-content:center;padding:0 24px}
+  .content-inner{width:100%;max-width:780px;padding:40px 0 40px}
+
+  /* ===== 欢迎视图 ===== */
+  .welcome{display:flex;flex-direction:column;align-items:center;text-align:center}
+  .w-logo{
+    width:92px;height:92px;border-radius:50%;overflow:hidden;
+    box-shadow:var(--shadow);border:4px solid #fff;margin-bottom:20px;
+    animation:fadeUp .5s ease both;
+  }
+  .w-logo img{width:100%;height:100%;object-fit:cover;display:block}
+  .w-title{font-size:34px;font-weight:900;letter-spacing:10px;margin-left:10px;animation:fadeUp .5s .05s ease both}
+  .w-lead{font-size:19px;font-weight:700;color:var(--ink-soft);margin-top:12px;animation:fadeUp .5s .1s ease both}
+  .w-sub{font-size:14px;color:var(--muted);margin-top:6px;animation:fadeUp .5s .15s ease both}
+  .w-scope{
+    display:inline-flex;align-items:center;gap:6px;margin-top:16px;
+    padding:6px 14px;border-radius:999px;background:var(--orange-soft);
+    color:var(--orange-deep);font-size:12px;font-weight:700;letter-spacing:1px;
+    animation:fadeUp .5s .2s ease both;
+  }
+  .w-scope svg{width:13px;height:13px}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* 输入区 */
+  .composer{
+    width:100%;display:flex;align-items:center;gap:10px;
+    background:var(--card);border:2px solid var(--line);border-radius:16px;
+    padding:6px 6px 6px 18px;transition:border-color .2s,box-shadow .2s;
+  }
+  .welcome .composer{margin-top:24px;animation:fadeUp .5s .25s ease both}
+  .composer:focus-within{border-color:var(--green);box-shadow:0 0 0 4px rgba(46,139,87,.12)}
+  .composer input{
+    flex:1;border:none;outline:none;font-size:15px;color:var(--ink);background:transparent;
+    padding:10px 0;
+  }
+  .composer input::placeholder{color:#9BB3A4}
+  .send-btn{
+    width:42px;height:42px;border-radius:12px;background:var(--orange);color:#fff;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;transition:background .18s,transform .15s;
+  }
+  .send-btn:hover{background:var(--orange-deep)}
+  .send-btn:active{transform:scale(.94)}
+  .send-btn:disabled{background:#C9D6CC;cursor:not-allowed}
+  .send-btn svg{width:19px;height:19px}
+  .stop-btn{
+    width:42px;height:42px;border-radius:12px;background:var(--card);color:var(--green-deep);flex-shrink:0;
+    border:2px solid var(--green);
+    display:flex;align-items:center;justify-content:center;transition:all .15s;
+  }
+  .stop-btn:hover{background:var(--green);color:#fff}
+  .stop-btn svg{width:15px;height:15px}
+  .composer-dock{
+    display:none;padding:12px 24px 14px;flex-shrink:0;
+    background:rgba(245,250,244,.9);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);
+  }
+  .composer-dock .composer{max-width:780px;margin:0 auto}
+  .main.chatting .composer-dock{display:block}
+
+  /* 常见问题 */
+  .faq-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:28px;width:100%;
+    animation:fadeUp .5s .3s ease both;
+  }
+  .faq-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:16px 18px 14px;text-align:left;transition:all .2s;
+    display:flex;flex-direction:column;gap:10px;
+  }
+  .faq-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#BFD9C4}
+  .faq-cat{
+    display:inline-flex;align-items:center;gap:5px;align-self:flex-start;
+    font-size:11px;font-weight:700;color:var(--orange-deep);
+    background:var(--orange-soft);padding:4px 10px;border-radius:999px;
+  }
+  .faq-cat svg{width:12px;height:12px}
+  .faq-ext{font-size:9px;font-weight:400;background:rgba(255,255,255,.5);border-radius:4px;padding:1px 4px;margin-left:2px;opacity:.85}
+  .faq-q{font-size:15px;font-weight:700;line-height:1.55;color:var(--ink)}
+  .faq-go{margin-left:auto;color:var(--green);display:flex;align-items:center;gap:4px;font-size:12px;font-weight:500;opacity:.85;transition:opacity .18s}
+  .faq-card:hover .faq-go{opacity:1}
+  .faq-go svg{width:13px;height:13px}
+
+  /* ===== 商品购买卡片 ===== */
+  .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:14px}
+  .shop-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+  .shop-name{font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.5}
+  .shop-price{font-size:12px;color:var(--orange-deep);font-weight:600}
+  .shop-price small{font-weight:400;color:var(--muted);font-size:10.5px}
+  .shop-links{display:flex;gap:8px;margin-top:4px}
+  .shop-btn{flex:1;text-align:center;text-decoration:none;font-size:12px;font-weight:600;padding:7px 0;border-radius:9px;color:#fff;transition:transform .15s,box-shadow .15s}
+  .shop-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.12)}
+  .shop-btn.tb{background:linear-gradient(135deg,#FF7A1A,#FF5000)}
+  .shop-btn.jd{background:linear-gradient(135deg,#F23A3A,#D81E06)}
+  .shop-add{margin-top:2px;border:none;background:var(--green);color:#fff;font-size:12px;font-weight:600;padding:7px 0;border-radius:9px;cursor:pointer;transition:transform .15s,opacity .15s}
+  .shop-add:hover{opacity:.88}
+  .shop-add.added{background:var(--muted);cursor:default}
+
+  /* ===== 天气卡 ===== */
+  .wx-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:6px}
+  .wx-head{display:flex;flex-direction:column;gap:4px}
+  .wx-title{font-size:15px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .wx-sub{font-size:12px;color:var(--muted)}
+  .wx-stats{display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:12px}
+  .wx-stat{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-soft)}
+  .wx-sv{display:inline-flex;color:var(--orange)}
+  .wx-sv svg{width:16px;height:16px}
+  .wx-sl{line-height:1.4}
+  .wx-hourly-title{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin:16px 0 4px}
+  .wx-chart{width:100%;overflow:hidden}
+  .wx-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px;margin-top:14px}
+  .wx-day{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center}
+  .wx-d1{font-size:11px;color:var(--muted)}
+  .wx-d2{font-size:12.5px;font-weight:700;color:var(--ink);margin:3px 0}
+  .wx-d3{font-size:11px;color:var(--orange-deep);font-weight:600}
+  .wx-d4{font-size:10.5px;color:var(--muted);margin-top:2px}
+
+  /* ===== 行程卡 ===== */
+  .trip-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:6px}
+  .trip-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .trip-title{font-size:15px;font-weight:700;color:var(--ink)}
+  .trip-sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .trip-export{display:inline-flex;align-items:center;gap:6px;border:none;background:var(--orange);color:#fff;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:10px;cursor:pointer;transition:opacity .18s}
+  .trip-export:hover{opacity:.88}
+  .trip-export svg{width:14px;height:14px}
+  .trip-day{margin-top:14px;border-left:3px solid var(--green);padding-left:14px}
+  .trip-day-h{font-size:13.5px;font-weight:700;color:var(--green-deep);margin-bottom:6px}
+  .trip-item{display:flex;gap:10px;padding:6px 0;font-size:13px;color:var(--ink-soft);line-height:1.6}
+  .trip-time{min-width:52px;color:var(--orange-deep);font-weight:600;font-variant-numeric:tabular-nums}
+  .trip-note{margin-top:12px;font-size:12px;color:var(--muted);line-height:1.6;background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:10px;padding:10px 12px}
+
+  /* ===== 购物车 ===== */
+  .cart-float{position:fixed;right:22px;bottom:96px;z-index:60;background:var(--green);color:#fff;border:none;border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 20px rgba(18,59,40,.25);transition:transform .18s}
+  .cart-float:hover{transform:translateY(-2px)}
+  .cart-float svg{width:22px;height:22px}
+  .cart-count{position:absolute;top:-3px;right:-3px;background:var(--orange);color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .cart-panel{position:fixed;top:0;right:0;bottom:0;width:360px;max-width:92vw;background:var(--card);z-index:70;transform:translateX(100%);transition:transform .28s ease;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.12)}
+  .cart-panel.open{transform:translateX(0)}
+  .cart-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .cart-head h3{font-size:16px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .cart-head h3 svg{width:18px;height:18px;color:var(--green)}
+  .cart-close{border:none;background:transparent;font-size:22px;color:var(--muted);cursor:pointer;line-height:1;padding:4px}
+  .cart-body{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px}
+  .cart-empty{text-align:center;color:var(--muted);font-size:13px;padding:40px 10px;line-height:1.8}
+  .cart-item{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .cart-ck{width:18px;height:18px;accent-color:var(--green);flex-shrink:0;cursor:pointer}
+  .cart-info{flex:1;min-width:0}
+  .cart-nm{font-size:13px;font-weight:600;color:var(--ink);line-height:1.4}
+  .cart-pr{font-size:11.5px;color:var(--orange-deep);margin-top:2px}
+  .cart-pr small{color:var(--muted)}
+  .cart-del{border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:18px;padding:2px 6px;flex-shrink:0}
+  .cart-del:hover{color:var(--red, #E24B4A)}
+  .cart-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+  .cart-total{font-size:13px;color:var(--ink-soft);display:flex;justify-content:space-between}
+  .cart-total b{color:var(--orange-deep);font-size:15px}
+  .cart-export{width:100%;border:none;background:var(--green);color:#fff;font-size:14px;font-weight:600;padding:12px 0;border-radius:11px;cursor:pointer;transition:opacity .18s}
+  .cart-export:hover{opacity:.9}
+  .cart-clear{border:none;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;padding:4px}
+  .cart-clear:hover{color:var(--ink)}
+  .cart-mask{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:65;opacity:0;pointer-events:none;transition:opacity .28s}
+  .cart-mask.open{opacity:1;pointer-events:auto}
+
+  .w-foot{margin-top:26px;animation:fadeUp .5s .35s ease both}
+  .disclaimer{font-size:12px;color:#8AA393;line-height:1.7}
+  .catalog-link{
+    margin-top:12px;display:inline-flex;align-items:center;gap:8px;
+    font-size:14px;font-weight:700;color:var(--green-deep);padding:6px 4px;
+    border-bottom:2px solid var(--orange);transition:opacity .18s;
+  }
+  .catalog-link:hover{opacity:.75}
+  .catalog-link svg{width:15px;height:15px}
+
+  /* ===== 对话视图 ===== */
+  .chat{display:flex;flex-direction:column;gap:20px;padding-top:8px}
+  .bubble-user{
+    align-self:flex-end;max-width:78%;background:var(--green);color:#fff;
+    padding:13px 18px;border-radius:18px 18px 4px 18px;font-size:15px;line-height:1.65;
+    animation:fadeUp .3s ease both;
+  }
+  .bubble-ai{
+    align-self:flex-start;max-width:100%;width:100%;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--r);padding:20px 22px;
+    box-shadow:var(--shadow);animation:fadeUp .3s ease both;
+  }
+  .ai-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .ai-avatar{width:28px;height:28px;border-radius:50%;overflow:hidden;flex-shrink:0}
+  .ai-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  .ai-name{font-size:13px;font-weight:700;color:var(--ink)}
+  .ai-badge{font-size:11px;color:var(--green-deep);background:#EAF4EC;padding:3px 8px;border-radius:999px;font-weight:500}
+  .ai-text{font-size:15px;line-height:1.85;color:#2E4A3A}
+  .ai-text p{margin:0 0 8px}
+  .ai-text p:last-child{margin-bottom:0}
+  .ai-text h3,.ai-text h4,.ai-text h5{color:var(--green-deep);margin:10px 0 6px;font-size:15px}
+  .ai-text ul,.ai-text ol{margin:4px 0 8px;padding-left:20px}
+  .ai-text li{margin-bottom:3px}
+  .ai-text strong{color:var(--green-deep)}
+  .ai-text code{background:#EAF4EC;color:var(--green-deep);padding:1px 6px;border-radius:5px;font-size:13px}
+  .ai-text table{border-collapse:collapse;margin:8px 0;font-size:13.5px;width:100%}
+  .ai-text th,.ai-text td{border:1px solid var(--line);padding:6px 10px;text-align:left}
+  .ai-text th{background:#EAF4EC;color:var(--green-deep)}
+  .ai-ref{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:12px;color:#8AA393}
+  .ai-loading{color:var(--muted)}
+  .ai-loading span{display:inline-block;animation:blink 1.2s infinite}
+  .ai-loading span:nth-child(2){animation-delay:.2s}
+  .ai-loading span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.2}40%{opacity:1}}
+  .thinking{color:var(--muted);font-size:13.5px}
+  .err-actions{margin-top:10px}
+  .btn-retry{
+    padding:6px 14px;border-radius:8px;background:var(--orange);color:#fff;
+    font-size:12.5px;font-weight:600;transition:background .15s;
+  }
+  .btn-retry:hover{background:var(--orange-deep)}
+
+  /* ===== 火车票结果卡片 ===== */
+  .tr-title{font-size:16px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tr-title .tr-badge{font-size:11px;font-weight:700;color:var(--orange-deep);background:var(--orange-soft);padding:3px 9px;border-radius:999px}
+  .tr-sub{font-size:12.5px;color:var(--muted);margin:6px 0 14px;line-height:1.7}
+  .tr-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  .tr-table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+  .tr-table th{background:var(--ink);color:#fff;font-weight:600;text-align:left;padding:9px 12px;font-size:12.5px}
+  .tr-table th:first-child{border-radius:11px 0 0 0}
+  .tr-table th:last-child{border-radius:0 11px 0 0}
+  .tr-table td{padding:9px 12px;border-bottom:1px solid var(--line);color:#2E4A3A;vertical-align:middle}
+  .tr-table tbody tr:last-child td{border-bottom:none}
+  .tr-table tbody tr:hover td{background:#F0F7F0}
+  .tr-table .tr-code{font-weight:800;color:var(--green-deep)}
+  .tr-table .tr-st{font-size:12px;color:var(--muted);white-space:normal;min-width:96px}
+  .tr-table .tr-time{font-weight:700;color:var(--ink)}
+  .tr-table .tr-dur{color:var(--muted);font-size:12px}
+  .seat-tags{display:flex;flex-wrap:wrap;gap:5px;min-width:230px;white-space:normal}
+  .seat-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;border-radius:7px;padding:3px 8px;background:#F2F6F2;color:#5A7264}
+  .seat-tag b{font-weight:600;color:var(--ink-soft)}
+  .seat-tag.have{background:#E7F3EA;color:var(--green-deep);font-weight:700}
+  .seat-tag.hot{background:#FFF3E8;color:var(--orange-deep);font-weight:700}
+  .seat-tag.none{background:#F4F5F4;color:#AEB8B1}
+  .tr-note{margin-top:10px;font-size:12px;color:#8AA393;line-height:1.7}
+  .tr-more{margin-top:8px;font-size:12px;color:var(--orange-deep);font-weight:700}
+  .tr-err{color:#B0481A;line-height:1.8;font-size:14px}
+
+  /* ===== 最便宜方案卡片 ===== */
+  .cp-hero{border-radius:14px;padding:18px 20px;color:#fff;background:linear-gradient(135deg,#123B28,#1E5C3F);margin-bottom:14px}
+  .cp-hero-top{display:flex;align-items:center;gap:8px;font-size:12px;opacity:.9;margin-bottom:10px;flex-wrap:wrap}
+  .cp-tag{background:var(--orange);color:#fff;font-weight:700;padding:3px 10px;border-radius:999px;font-size:11px}
+  .cp-price{display:flex;align-items:baseline;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .cp-price .rmb{font-size:19px;font-weight:800;color:#FFD2A8}
+  .cp-price .num{font-size:38px;font-weight:900;color:var(--orange);line-height:1;letter-spacing:-1px}
+  .cp-price .pinfo{font-size:12px;opacity:.85;margin-left:4px}
+  .cp-leg{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:11px;padding:10px 13px;margin-top:8px}
+  .cp-leg-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .cp-code{font-weight:800;font-size:14px;background:rgba(255,255,255,.17);padding:3px 10px;border-radius:8px;white-space:nowrap}
+  .cp-stations{font-size:13.5px;font-weight:600}
+  .cp-time{font-size:12.5px;opacity:.92;margin-left:auto;text-align:right;white-space:nowrap;line-height:1.7}
+  .cp-seatline{font-size:12px;opacity:.9;margin-top:7px}
+  .cp-seatline b{color:#FFD2A8;font-weight:700}
+  .cp-opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .cp-opt{font-size:12px;border-radius:8px;padding:3px 10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.17)}
+  .cp-opt b{color:#FFD2A8;font-weight:700}
+  .cp-transfer{display:flex;align-items:center;gap:9px;margin:8px 0 2px 13px;font-size:12.5px;color:#FFD2A8;font-weight:700}
+  .cp-transfer::before{content:"";width:2px;height:15px;background:rgba(255,210,168,.55);border-radius:2px}
+  .cp-sec{font-size:13.5px;font-weight:800;color:var(--ink);margin:16px 0 8px;display:flex;align-items:center;gap:8px}
+  .cp-sec::before{content:"";width:4px;height:14px;background:var(--orange);border-radius:2px}
+  .cp-sec .cnt{font-size:11.5px;color:var(--muted);font-weight:500}
+  .cp-tcard{border:1px solid var(--line);border-radius:11px;padding:10px 14px;margin-bottom:8px;background:#FCFEFC}
+  .cp-tcard:hover{border-color:#BFD9C4}
+  .cp-tc-top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .cp-tc-code{font-weight:800;color:var(--green-deep)}
+  .cp-tc-route{font-size:12.5px;color:var(--muted)}
+  .cp-tc-price{margin-left:auto;font-weight:900;color:var(--orange-deep);font-size:15px;white-space:nowrap}
+  .cp-tc-sub{font-size:12px;color:#5A7264;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cp-tc-sub .cp-wait{color:var(--orange-deep);font-weight:700}
+  .cp-minilegs{display:flex;gap:7px;flex-wrap:wrap;margin-top:7px}
+  .cp-minileg{font-size:11.5px;background:#F2F7F3;border-radius:8px;padding:5px 9px;color:#2E4A3A;line-height:1.7}
+  .cp-minileg b{color:var(--green-deep)}
+
+  /* ===== 资料目录视图 ===== */
+  .catalog-head{display:flex;align-items:center;gap:12px;margin-bottom:8px;animation:fadeUp .4s ease both}
+  .catalog-head h2{font-size:22px;font-weight:900;letter-spacing:2px}
+  .catalog-head .back{
+    width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    color:var(--green-deep);border:1px solid var(--line);background:var(--card);transition:all .18s;
+  }
+  .catalog-head .back:hover{border-color:var(--green)}
+  .catalog-head .back svg{width:16px;height:16px}
+  .catalog-sub{font-size:13px;color:var(--muted);margin:0 0 20px 46px;animation:fadeUp .4s .05s ease both}
+  .catalog-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .cat-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:18px;text-align:left;transition:all .2s;animation:fadeUp .4s ease both;
+  }
+  .cat-card:hover{transform:translateY(-3px);box-shadow:var(--shadow);border-color:#BFD9C4}
+  .cat-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .cat-ic{
+    width:40px;height:40px;border-radius:12px;background:var(--orange-soft);color:var(--orange-deep);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .cat-ic svg{width:19px;height:19px}
+  .cat-name{font-size:15px;font-weight:800;color:var(--ink)}
+  .cat-desc{font-size:12px;color:var(--muted);margin-top:2px}
+  .cat-sec{
+    display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;
+    border-top:1px dashed var(--line);font-size:12px;color:var(--green-deep);font-weight:600;
+  }
+  .cat-sec svg{width:13px;height:13px}
+  .cat-go{margin-left:auto;color:var(--orange-deep);display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700}
+  .cat-go svg{width:13px;height:13px}
+
+  /* ===== 资料详情视图 ===== */
+  .detail-head{display:flex;align-items:center;gap:14px;margin-bottom:14px;animation:fadeUp .4s ease both}
+  .detail-head .back{
+    width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    color:var(--green-deep);border:1px solid var(--line);background:var(--card);transition:all .18s;flex-shrink:0;
+  }
+  .detail-head .back:hover{border-color:var(--green)}
+  .detail-head .back svg{width:16px;height:16px}
+  .detail-ic{
+    width:46px;height:46px;border-radius:13px;background:var(--orange-soft);color:var(--orange-deep);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .detail-ic svg{width:22px;height:22px}
+  .detail-title{font-size:21px;font-weight:900;letter-spacing:1px}
+  .detail-brief{font-size:13px;color:var(--muted);margin-top:3px}
+  .detail-meta{
+    display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 20px 60px;
+    font-size:12px;color:#8AA393;animation:fadeUp .4s .05s ease both;
+  }
+  .detail-meta svg{width:13px;height:13px;color:var(--orange)}
+
+  .kb-section{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:20px 22px;margin-bottom:14px;animation:fadeUp .4s ease both;
+  }
+  .kb-h3{
+    display:flex;align-items:center;gap:10px;font-size:16px;font-weight:800;color:var(--ink);
+    margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--line);
+  }
+  .kb-h3 .no{
+    width:24px;height:24px;border-radius:8px;background:var(--ink);color:#fff;
+    font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .kb-para{font-size:14.5px;line-height:1.85;color:#2E4A3A}
+  .kb-para + .kb-list,.kb-para + .kb-steps{margin-top:12px}
+  .kb-list{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .kb-list li{display:flex;gap:10px;font-size:14.5px;line-height:1.75;color:#2E4A3A;padding-left:4px}
+  .kb-list li::before{
+    content:"";flex-shrink:0;width:6px;height:6px;border-radius:50%;
+    background:var(--green);margin-top:10px;
+  }
+  .kb-steps{list-style:none;counter-reset:kb;display:flex;flex-direction:column;gap:0}
+  .kb-steps li{
+    counter-increment:kb;display:flex;gap:12px;font-size:14.5px;line-height:1.75;
+    color:#2E4A3A;padding:8px 4px;position:relative;
+  }
+  .kb-steps li::before{
+    content:counter(kb);flex-shrink:0;width:24px;height:24px;border-radius:50%;
+    background:var(--orange-soft);color:var(--orange-deep);font-size:12px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;margin-top:2px;
+  }
+  .kb-steps li + li{border-top:1px dashed var(--line)}
+  .kb-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px}
+  .kb-table th{background:var(--ink);color:#fff;font-weight:600;text-align:left;padding:10px 12px;font-size:13px}
+  .kb-table th:first-child{border-radius:10px 0 0 0}
+  .kb-table th:last-child{border-radius:0 10px 0 0}
+  .kb-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:#2E4A3A;line-height:1.6}
+  .kb-table tr:last-child td{border-bottom:none}
+  .kb-table tbody tr:hover td{background:#F0F7F0}
+  .kb-warn{
+    margin-top:12px;padding:12px 14px 12px 16px;border-radius:10px;
+    background:var(--warn-bg);border-left:4px solid var(--orange);
+    font-size:13.5px;line-height:1.75;color:#7A4A17;
+  }
+  .kb-warn b{color:var(--orange-deep)}
+  .kb-tip{
+    margin-top:12px;padding:12px 14px 12px 16px;border-radius:10px;
+    background:#EDF6EF;border-left:4px solid var(--green);
+    font-size:13.5px;line-height:1.75;color:#2E5C41;
+  }
+  .kb-tip b{color:var(--green-deep)}
+
+  .detail-nav{
+    display:flex;justify-content:space-between;gap:12px;margin-top:18px;
+    animation:fadeUp .4s ease both;
+  }
+  .detail-nav button{
+    flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    font-size:13px;color:var(--ink-soft);transition:all .2s;text-align:left;
+  }
+  .detail-nav button:hover{border-color:var(--green);box-shadow:var(--shadow)}
+  .detail-nav .next{justify-content:flex-end;text-align:right}
+  .detail-nav .dir{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+  .detail-nav .name{font-weight:700;font-size:13px}
+  .detail-nav svg{width:15px;height:15px;color:var(--orange);flex-shrink:0}
+
+  /* 遮罩 */
+  .mask{
+    display:none;position:fixed;inset:0;background:rgba(18,59,40,.45);z-index:30;
+    opacity:0;transition:opacity .25s;
+  }
+  .mask.show{display:block;opacity:1}
+
+  /* toast */
+  .toast{
+    position:fixed;left:50%;bottom:34px;transform:translate(-50%,16px);
+    background:var(--ink);color:#fff;font-size:13px;padding:11px 20px;border-radius:12px;
+    opacity:0;pointer-events:none;transition:all .25s;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.2);
+    display:flex;align-items:center;gap:8px;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast svg{width:15px;height:15px;color:var(--orange)}
+
+  /* ===== 响应式 ===== */
+  @media (max-width:900px){
+    .sidebar{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.25)}
+    .sidebar.open{transform:none}
+    .burger{display:flex}
+    .faq-grid,.catalog-grid{grid-template-columns:1fr}
+    .detail-meta{margin-left:0}
+  }
+  @media (max-width:560px){
+    .content{padding:0 14px}
+    .content-inner{padding:28px 0 28px}
+    .w-title{font-size:27px;letter-spacing:7px}
+    .w-lead{font-size:16px}
+    .topbar{padding:10px 14px}
+    .topbar-btn span{display:none}
+    .kb-table{font-size:13px}
+    .kb-table th,.kb-table td{padding:8px 8px}
+    .model-select{max-width:110px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none !important;transition:none !important}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ===== 侧边栏 ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-logo"><img src="assets/logo.png" alt="燕子户外"></div>
+      <div>
+        <div class="brand-name">燕子户外</div>
+        <div class="brand-sub">SWALLOW OUTDOOR</div>
+      </div>
+    </div>
+
+    <button class="nav-item" id="navNew">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      新对话
+    </button>
+    <button class="nav-item" id="navCatalog">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>
+      资料库
+      <span class="count" id="kbCount"></span>
+    </button>
+    <div class="nav-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" placeholder="搜索对话" autocomplete="off">
+    </div>
+
+    <div class="nav-sep"></div>
+    <div class="recent-title">最近对话<span class="ttl">3 天自动清理</span></div>
+    <div id="recentList"></div>
+
+    <div class="sidebar-foot">燕子户外 · 户外知识智能助手<br>资料库覆盖天气、车票、装备与安全攻略</div>
+  </aside>
+
+  <div class="mask" id="mask"></div>
+
+  <!-- ===== 主区 ===== -->
+  <main class="main" id="mainArea">
+    <header class="topbar">
+      <button class="burger" id="btnBurger" aria-label="打开菜单">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span class="topbar-title">户外助手问答</span>
+      <div class="topbar-actions">
+        <select class="model-select" id="modelSelect" title="选择模型"></select>
+        <button class="topbar-btn" id="btnAllData">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4a2 2 0 0 0-2-2H6.5A2.5 2.5 0 0 0 4 4.5v15z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>
+          <span>全部户外资料</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+      <div class="content-inner" id="viewRoot"></div>
+    </div>
+
+    <!-- 对话模式输入区（置底） -->
+    <div class="composer-dock" id="composerDock"></div>
+  </main>
+</div>
+
+<!-- 输入框（唯一实例，在欢迎区与对话底栏之间移动） -->
+<div class="composer" id="composer" style="display:none">
+  <input id="askInput" type="text" placeholder="问活动、装备、攻略，或查火车票 / 车次…" autocomplete="off">
+  <button class="send-btn" id="askSend" aria-label="发送" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>
+  </button>
+  <button class="stop-btn" id="askStop" aria-label="停止生成" style="display:none">
+    <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>
+  </button>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<!-- 购物车浮层 -->
+<div class="cart-mask" id="cartMask"></div>
+<div class="cart-panel" id="cartPanel">
+  <div class="cart-head">
+    <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>装备清单</h3>
+    <button class="cart-close" id="cartClose" aria-label="关闭">×</button>
+  </div>
+  <div class="cart-body" id="cartBody"></div>
+  <div class="cart-foot">
+    <div class="cart-total"><span>已选 <b id="cartSel">0</b> / <span id="cartTot">0</span> 件</span><span>参考价合计 <b id="cartSum">¥0</b></span></div>
+    <button class="cart-export" id="cartExport">导出装备购买清单</button>
+    <button class="cart-clear" id="cartClear">清空清单</button>
+  </div>
+</div>
+<button class="cart-float" id="cartFloat" style="display:none" aria-label="装备清单">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+  <span class="cart-count" id="cartCount" style="display:none">0</span>
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@tencent-ai/workbuddy-cloud-sdk@dev/lib/index.global.js"></script>
+<script>
+(function(){
+'use strict';
+var $ = function(id){ return document.getElementById(id); };
+
+/* ================= 配置 ================= */
+/* 本地数据代理：默认 8899；若被占用（例如旧的代理进程还在跑），
+   会自动探测 8901 / 8902 等端口，避免"页面连不上助手"。
+   健康检查必须拿到真实天气数据（ok===true 且有 now/daily）才算数——
+   旧版代理进程即使所有查询都报错也能返回 ok:false，不能让它蒙混过关。 */
+var PROXY = 'http://127.0.0.1:8899';
+var PROXY_CANDIDATES = ['http://127.0.0.1:8899', 'http://127.0.0.1:8901', 'http://127.0.0.1:8902', 'http://127.0.0.1:8903'];
+var proxyResolved = false;
+async function resolveProxy(){
+  if(proxyResolved){ return PROXY; }
+  var preferred = null, fallback = null;
+  for(var i = 0; i < PROXY_CANDIDATES.length; i++){
+    var base = PROXY_CANDIDATES[i];
+    try{
+      var ctl = new AbortController();
+      var timer = setTimeout(function(){ ctl.abort(); }, 3000);
+      var r = await fetch(base + '/weather', { signal: ctl.signal });
+      clearTimeout(timer);
+      var j = await r.json();
+      if(j && j.ok === true && j.now && j.daily && j.daily.length){
+        /* 完全健康：数据齐全，直接采用 */
+        PROXY = base;
+        proxyResolved = true;
+        return PROXY;
+      }
+      if(j && (j.ok === true || j.now) && !preferred){
+        /* 部分响应：记下来作备选（比如天气正好限流），但继续找更好的 */
+        preferred = base;
+      }
+    }catch(_e){}
+  }
+  PROXY = preferred || fallback || PROXY;
+  proxyResolved = true;
+  return PROXY;
+}
+
+var publicConfig = {
+  endpoint: "https://yanzi-outdoor.app.workbuddy.host",
+  publishableKey: "wbpk_gyEOe3fa3D7R2QEBI4mEgq_r9USapM7ynA2Pgik1vf1i2fd5AZY9YzM"
+};
+
+/* 自备 DeepSeek API（官方直连，默认通道） */
+var DEEPSEEK_CONFIG = {
+  baseUrl: "https://api.deepseek.com",
+  apiKey: "YOUR_DEEPSEEK_API_KEY_HERE",
+  models: [
+    { id: "deepseek-v4-pro", name: "DeepSeek-V4-Pro" },
+    { id: "deepseek-flash", name: "DeepSeek-Flash" },
+  ],
+};
+
+var SYSTEM_PROMPT = `# 角色设定
+你是「燕子户外」网站的官方智能客服助手，名叫"小燕"。燕子户外是一个专注于户外运动与自然旅行的综合性网站，涵盖徒步、露营、登山、骑行、溯溪、亲子户外等业务，为用户提供路线推荐、装备选购、活动报名、户外知识与安全保障服务。
+# 使命
+帮助用户轻松规划户外出行：从选路线、备装备、报活动到安全须知，提供专业、贴心、一站式的智能咨询服务，让每一位用户都能安心走进自然。
+# 核心能力
+1. 路线推荐：根据用户的出发地、时间、预算、体能水平和兴趣（观景/亲子/挑战/摄影），推荐合适的户外路线，说明难度等级（休闲/进阶/挑战）、耗时、最佳季节和注意事项。
+2. 装备顾问：按活动类型和天气情况，给出装备清单建议（服装、鞋包、露营、照明、急救等），区分"必备"和"可选"，并给出选购要点。
+3. 行程规划：帮用户制定 1-3 天的户外行程安排，包括每日路线、补给点、住宿建议和备用方案。当用户要求"规划行程/做行程/行程安排/帮我安排N天"时，**必须在回答末尾输出一份结构化行程卡**（见下方 [trip] 格式），正文照常给简要说明，行程卡由系统渲染成可导出的卡片。
+4. 安全指导：主动提示户外风险（天气突变、迷路、失温、中暑、野生动物），讲解基础急救与应急处理方法，遇到危险情况优先建议用户拨打110/120/当地救援电话。
+5. 活动与报名：介绍网站近期活动、集合信息、费用明细，引导用户完成报名流程。
+6. 户外知识问答：解答户外技巧、环保准则（无痕山林 LNT 原则）、营地选择、导航定位等常见问题。
+# 工具说明（你可以主动调用工具获取实时数据）
+你拥有以下工具，可在需要实时数据时自行调用，不要凭记忆编造：
+- query_trains(from, to, date, period)：查两个车站之间的火车车次与余票。from/to 填**城市名或车站名**（如"徐州""重庆"，系统会自动匹配同城所有车站）；日期一律换算成 YYYY-MM-DD；period 可填 凌晨/上午/中午/下午/傍晚/晚上，用户没说时段就不填。
+- query_train_detail(code, date)：查某一趟车（如 G2207）的完整时刻表与沿途停站。
+- query_cheapest(from, to, date)：查两地之间最便宜的方案，含直达与中转比价。
+- query_weather(location, date)：查某地天气，location 填城市或景区名（如"五台山""济南"），date 可填 今天/明天/后天 或 YYYY-MM-DD。
+调用规则：
+- 只要用户问题涉及车次、余票、票价、几点发车、坐哪趟车、怎么坐车去某地，**必须调用 query_trains** 拿真实数据后再回答，绝不能凭印象说"大致方案"。用户没给日期就用今天，不要为了问日期而反问、先把数据查出来再说。
+- 用户提到"最便宜/最省钱/最划算"且问两地点之间，用 query_cheapest。
+- 用户点名某个车次号（G/D/Z/T/K/L/Y 开头 + 数字），用 query_train_detail。
+- 用户问天气、适不适合出行、要不要带雨具，用 query_weather。
+- 一次拿不准可以多次调用（比如先按用户说的时段查，没车再查全天）；拿到数据后用自然语言总结要点（推荐哪趟、几点、历时、票价余票、注意事项），**不要重复罗列表格里已有的全部内容**，表格由系统自动渲染。
+- 工具返回数据为空或报错时，如实告知用户并给出建议（如换个站名、换个日期、去 12306 官网确认），不要编造车次。
+- 用户咨询装备购买/推荐具体商品时：正文照常给选购建议，然后在回答末尾按以下格式逐行列出推荐商品（每行一个，最多5个，标签外不要加任何解释）：
+[shop]商品名|参考价区间|搜索关键词[/shop]
+例如：[shop]Osprey Kestrel 38 徒步背包|¥900-1300|Osprey Kestrel 38 背包[/shop]
+价格只写你知识中的大致参考区间，并在正文提醒一次"参考价为大致区间、非实时价，以下单页为准"；搜索关键词要简洁准确、适合电商平台直接搜索。系统会在每件商品下自动显示"加入装备清单"按钮，用户可自行加入清单并导出，你无需额外说明。
+# 行程卡输出格式
+当用户要求做行程规划时，在回答末尾用 [trip]...[/trip] 标签输出结构化行程，格式如下（第一行是标题，可用 | 分隔副标题；之后用 [Day 1] [Day 2] 分天；每天内用 "- 时间 内容" 列条目；注意事项放最后不加短横线）：
+[trip]五台山两日轻装徒步 | 9月25日-26日
+[Day 1] 台怀镇 → 东台顶
+- 07:00 从台怀镇出发，乘车至鸿门岩
+- 08:30 开始徒步登东台（约2小时，累计爬升500m）
+- 12:00 山顶路餐，午后下撤
+- 16:00 返回台怀镇住宿
+[Day 2] 黛螺顶朝台
+- 08:00 徒步黛螺顶（1080级台阶）
+- 11:30 下山午餐
+- 14:00 返程
+注意事项：备足饮水、山顶风大注意保暖、提前查天气[/trip]
+要求：时间用 24 小时制（HH:MM）；每天条目简洁（一句话）；"注意事项"单独一段放在所有天之后；行程要结合真实难度与安全常识，不要安排明显不合理的行程。
+# 交互风格
+- 热情友好、专业可靠，像一位经验丰富的户外领队朋友。
+- 语气轻松自然，可适度使用户外圈常用语（如"拉练""轻装""重装"），但需照顾新手用户，首次出现的术语要简短解释。
+- 回答结构清晰：路线推荐用列表呈现关键信息（难度/时长/亮点/注意），装备清单用分组表格。
+- 主动追问关键信息：当用户需求模糊时，一次最多问 2-3 个问题（如"什么时候出发？几个人？有户外经验吗？"）。
+# 输出规范
+- 优先使用中文回复，回复保持简洁实用，单次回复不超过 500 字，长内容分条列点。
+- 推荐路线时必须包含：难度等级、建议时长、最佳季节、亮点、风险提示五要素。
+- 不确定的信息（如实时价格）如实说明，不编造事实。
+- 遇到超出能力范围的问题（如医疗急救现场指导、法律纠纷），礼貌说明并引导至专业人员或官方渠道。
+# 安全底线
+- 永远不鼓励用户在恶劣天气、封山期或无准备状态下进行高风险活动。
+- 涉及未成年人户外活动时，提醒需有监护人陪同。
+- 不提供任何违反自然保护区规定的行为建议。`;
+
+/* ================= 知识库数据 ================= */
+var KB = [
+  {
+    id:'weather', icon:'sun', cat:'天气相关',
+    brief:'徐州实时天气、未来预报与户外出行天气查询要点',
+    sections:[
+      {
+        title:'户外天气查询要点',
+        blocks:[
+          {type:'list', items:[
+            '重点看三个指标：降水概率、风力等级、极端天气预警',
+            '山区 / 高海拔：山顶比山脚低 8-10°C，天气变化极快，可能瞬间从晴转雨',
+            '除基础天气外，还应查：穿衣指数、旅游指数、舒适度指数'
+          ]},
+          {type:'warn', items:['安全红线：暴雨天别进山（易引发泥石流），大风天慎爬高']}
+        ]
+      }
+    ]
+  },
+  {
+    id:'ticket', icon:'ticket', cat:'车票购买知识',
+    brief:'火车票、汽车票购买渠道与规则，出行当天注意事项',
+    sections:[
+      {
+        title:'火车票',
+        blocks:[
+          {type:'list', items:[
+            '预售期：提前 15 天，旺季 / 节假日提前设闹钟抢票',
+            '购票渠道：首选官方 12306 APP，慎入第三方平台',
+            '抢票技巧：勾选“接受新增列车”可提高候补成功率',
+            '团体票：可通过 12306 提前联系，线上即可支付票款'
+          ]},
+          {type:'para', text:'儿童票规则：'},
+          {type:'table',
+           head:['年龄','规则'],
+           rows:[
+             ['6 周岁（含）以下','免票'],
+             ['6-14 周岁','儿童优惠票'],
+             ['14 周岁以上','全价票']
+           ]}
+        ]
+      },
+      {
+        title:'长途汽车票',
+        blocks:[
+          {type:'list', items:[
+            '线上渠道：12306 APP 内“汽车票”服务、巴士管家等平台',
+            '现场购票：汽车站窗口直接买，可当场确认车次座位',
+            '建议：至少提前 30 分钟到车站取票'
+          ]}
+        ]
+      },
+      {
+        title:'出行当天',
+        blocks:[
+          {type:'list', items:[
+            '火车站：提前 20 分钟以上到达',
+            '汽车站 / 机场：预留更多时间应对安检排队',
+            '必带：有效身份证件（取票乘车必备）'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'gear', icon:'bag', cat:'户外装备清单',
+    brief:'穿衣三层法则、核心装备清单与新手避坑指南',
+    sections:[
+      {
+        title:'穿衣三层法则（绝对不穿纯棉）',
+        blocks:[
+          {type:'table',
+           head:['层级','作用','推荐选择'],
+           rows:[
+             ['内层（排汗层）','排汗速干，保持皮肤干燥','速干衣裤'],
+             ['中层（保暖层）','锁温保暖','抓绒衣 / 薄羽绒服'],
+             ['外层（防风层）','防风防水','冲锋衣 + 冲锋裤']
+           ]},
+          {type:'warn', items:['纯棉衣物出汗后难干，在山上风寒效应下会迅速带走体温，有失温风险']}
+        ]
+      },
+      {
+        title:'核心装备清单',
+        blocks:[
+          {type:'list', items:[
+            '鞋子：中高帮徒步鞋，防滑鞋底，合脚最重要（别用普通运动鞋代替，湿滑路面极易滑倒）',
+            '背包：30L 起步，带腰带和胸扣，轻量化但有支撑',
+            '头部三件套：帽子 + 墨镜 + 魔术头巾（防晒保暖防风）',
+            '防晒霜：出门前 20 分钟涂，每 2-3 小时补涂，阴天也要涂',
+            '雨衣：比雨伞实用，风大时雨伞没用',
+            '头灯：备双份电池，走夜路必备',
+            '水袋 / 保温瓶：徒步耗水量大',
+            '急救包',
+            '能量棒 / 巧克力等高热量零食'
+          ]}
+        ]
+      },
+      {
+        title:'新手避坑',
+        blocks:[
+          {type:'warn', items:[
+            '不要用普通运动鞋代替登山鞋——最大安全隐患',
+            '不要穿纯棉衣物——失温风险',
+            '背包不要“贪大求全”——塞满非必需品只会更累'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'safety', icon:'shield', cat:'安全急救知识',
+    brief:'中暑、失温、迷路的识别与应对，恶劣天气避险与安全铁律',
+    sections:[
+      {
+        title:'中暑应对',
+        blocks:[
+          {type:'para', text:'先兆症状：头晕、口渴、多汗、乏力、注意力不集中。'},
+          {type:'steps', items:[
+            '立即停止行进',
+            '转移到阴凉通风处',
+            '物理降温（冰袋敷额头、颈部）',
+            '少量多次补充淡盐水 / 电解质'
+          ]},
+          {type:'list', items:['常备药品：藿香正气水 / 丸、十滴水、清凉油']}
+        ]
+      },
+      {
+        title:'失温应对',
+        blocks:[
+          {type:'para', text:'识别信号：寒颤、言语不清、动作协调性下降。'},
+          {type:'steps', items:[
+            '转移到避风处',
+            '立刻换掉湿衣服，穿上干燥衣物',
+            '重点保暖头颈胸腹（用救生毯、发热贴）',
+            '喝温热的糖水 / 高热量流质'
+          ]},
+          {type:'warn', items:['严禁：直接用明火或热水烘烤、让患者剧烈运动']}
+        ]
+      },
+      {
+        title:'迷路应对',
+        blocks:[
+          {type:'para', text:'核心原则：原地停留，不盲目走动。'},
+          {type:'list', items:['求救信号：哨子、灯光闪烁、镜子反光、烟雾']}
+        ]
+      },
+      {
+        title:'恶劣天气避险',
+        blocks:[
+          {type:'list', items:[
+            '雷雨：远离高处、大树、水域，收起金属装备（登山杖等）',
+            '山洪 / 落石：迅速撤到两侧高地，远离河道和危坡'
+          ]}
+        ]
+      },
+      {
+        title:'安全铁律',
+        blocks:[
+          {type:'warn', items:[
+            '野线绝不单人徒步，结伴而行互相观察状态',
+            '提前下载离线地图和 GPS 定位软件，确保没信号也能导航',
+            '出发前把行程告诉亲友'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'misc', icon:'sparkle', cat:'其他实用知识',
+    brief:'防晒、饮食与出行前检查清单',
+    sections:[
+      {
+        title:'防晒',
+        blocks:[
+          {type:'list', items:[
+            '阴天、树荫下紫外线依旧穿透，会被“隐形晒伤”（延迟性，晚上才泛红脱皮）',
+            '物理防晒 > 化学防晒：帽子、冰袖、防晒衣搭配防晒霜最稳'
+          ]}
+        ]
+      },
+      {
+        title:'饮食',
+        blocks:[
+          {type:'list', items:[
+            '以易携带、补充能量为主：能量棒、巧克力、面包、水果',
+            '多带水，徒步过程耗水量比平时大很多'
+          ]}
+        ]
+      },
+      {
+        title:'出行前检查',
+        blocks:[
+          {type:'steps', items:[
+            '查好未来一周天气预报',
+            '确认车票 / 门票已预订',
+            '检查装备清单，特别是鞋子和防雨装备',
+            '充满手机电量，带充电宝',
+            '把行程告知亲友'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'route', icon:'compass', cat:'路线规划与导航',
+    brief:'路线选择原则、离线地图与导航软件、通讯与求救信号（防迷路必读）',
+    sections:[
+      {
+        title:'路线选择原则',
+        blocks:[
+          {type:'list', items:[
+            '新手优先成熟景区路线，拒绝网红野线——很多未开发山林属于管控区域，私自闯入有安全风险与法律责任',
+            '评估难度看三项：总里程、累计爬升、路面类型；新手单日徒步建议爬升控制在 600m 以内',
+            '一定要做往返预案：规划一条正常前进路线 + 一条紧急撤退路线，想好中途哪里可以下撤',
+            '行前报备：完整行程（地点、起止时间、同行人）发给家里亲友，约定定时报平安的时间点，万一失联方便救援'
+          ]}
+        ]
+      },
+      {
+        title:'导航软件与离线地图',
+        blocks:[
+          {type:'list', items:[
+            '两步路户外助手：下载网友上传徒步轨迹，自带等高线，记录行走轨迹',
+            '奥维互动地图：看卫星 3D 地形，看清山谷悬崖地貌，可导入两步路 KML 轨迹文件配合使用',
+            '纸质地图 + 指南针作为物理备份，不要完全依赖手机——手机没电就彻底失去导航'
+          ]},
+          {type:'warn', items:[
+            '进山必须提前下载离线轨迹 + 离线地图，山里大多没有手机信号',
+            '普通高德 / 百度地图在山野小路经常失效，不能当做徒步唯一导航工具'
+          ]}
+        ]
+      },
+      {
+        title:'通讯与求救信号',
+        blocks:[
+          {type:'list', items:[
+            '普通手机：提前装好防水袋；带大容量充电宝；山里信号差，尽量不要把电量耗光',
+            '长线重装 / 高海拔：条件允许考虑北斗卫星消息设备——山区无手机信号时普通电话打不出去'
+          ]},
+          {type:'warn', items:[
+            '国际求救哨音：三短、三长、三短，重复循环',
+            '白天用反光镜反光，夜间用头灯闪烁发送 SOS 信号'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'camp', icon:'flame', cat:'露营选址与生火安全',
+    brief:'营地选址三不要、选址优选原则、野外用火规范与熄火标准',
+    sections:[
+      {
+        title:'营地选址三不要',
+        blocks:[
+          {type:'warn', items:[
+            '不要扎营在峡谷底部、山沟河道里面——夜里山洪暴涨极易淹掉营地',
+            '不要扎在枯树下方——防止枯枝夜里坠落砸帐篷',
+            '不要选土质松动的陡坡下方——防范落石滑坡'
+          ]},
+          {type:'list', items:[
+            '优先选：地势平整、地势略高排水好、背风的硬质地面',
+            '离溪流水源至少 30-50 米距离',
+            '避开动物粪便痕迹区域'
+          ]}
+        ]
+      },
+      {
+        title:'用火安全',
+        blocks:[
+          {type:'list', items:[
+            '先确认当地防火禁令！防火期严禁野外明火；禁止私自随便烧篝火，优先使用便携气炉做饭',
+            '如果允许生火：只用原有遗留火坑；火堆不要做大；旁边常备一桶水 + 铁锹'
+          ]},
+          {type:'warn', items:[
+            '熄火标准：全部浇透水、翻动灰烬，直到手摸上去完全没有温热感才算熄灭——不能只看着没明火就离开'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'foodwater', icon:'meal', cat:'户外饮食与野外饮水',
+    brief:'路餐选择原则、食物分装技巧、野外水源处理方法',
+    sections:[
+      {
+        title:'路餐原则（徒步路上吃）',
+        blocks:[
+          {type:'list', items:[
+            '优先选高热量、重量轻、不易变质的：牛肉干、坚果、能量棒、巧克力、糖、果干',
+            '爬坡前吃一点糖果快速补血糖',
+            '分装零食：在家拆掉多余外包装，装进密封塑封袋，既减重又减少沿途垃圾'
+          ]},
+          {type:'warn', items:[
+            '尽量不要带沙拉、鲜奶油熟食——气温高很快变质，容易引发拉肚子'
+          ]}
+        ]
+      },
+      {
+        title:'野外饮水（重点）',
+        blocks:[
+          {type:'warn', items:[
+            '山间溪流看着清澈，但大概率含有寄生虫、细菌，直接喝容易腹痛腹泻——不要直接喝山溪水'
+          ]},
+          {type:'list', items:[
+            '最优方案：自带足够瓶装饮用水，每日徒步建议每人至少 1.5-2L，高温天还要再多带',
+            '不得已取用野外水源——低海拔煮沸至少 1 分钟；高原气压低水沸点低，需煮沸 3 分钟以上',
+            '备选：净水片、户外滤水器过滤',
+            '不可以只简单过滤不杀菌，也不要用生水冲洗水果漱口'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'med', icon:'heart', cat:'药品与蚊虫蛇蜈防护',
+    brief:'随身药品清单、蛇类蜱虫蜂类伤害的预防与正确处置',
+    sections:[
+      {
+        title:'个人随身药品清单',
+        blocks:[
+          {type:'list', items:[
+            '基础急救包：碘伏棉片、创可贴、无菌纱布、弹性绷带、止血带、医用胶布',
+            '内服：止疼药、止泻药、抗过敏药',
+            '外用：驱蚊液、驱蛇粉'
+          ]},
+          {type:'warn', items:[
+            '有慢性病（哮喘、心脏病）务必随身携带自己的专属药物'
+          ]}
+        ]
+      },
+      {
+        title:'蛇类伤害处置',
+        blocks:[
+          {type:'list', items:[
+            '预防：走路尽量打草惊蛇；裤脚收紧；遇到蛇缓慢后退绕行，不要挑逗捕捉'
+          ]},
+          {type:'warn', items:[
+            '一旦被咬：立刻停止走动，减少血液循环，记住蛇的样貌，尽快下山就医',
+            '不要用嘴吸毒、不要割开伤口放血'
+          ]}
+        ]
+      },
+      {
+        title:'蜱虫与蜂类',
+        blocks:[
+          {type:'list', items:[
+            '蜱虫预防：扎紧裤腿；回来立刻全身检查',
+            '蜂类：避开蜂巢；被大量马蜂蛰伤属于高危，出现过敏头晕立刻就医'
+          ]},
+          {type:'warn', items:[
+            '蜱虫叮咬不要硬拔，建议尽快到医院处理，防止口器残留皮肤内引发感染'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'lnt', icon:'leaf', cat:'无痕山野 LNT 环保原则',
+    brief:'垃圾带走、走老路、不采野物、排泄远离水源',
+    sections:[
+      {
+        title:'LNT 七原则实践要点',
+        blocks:[
+          {type:'warn', items:[
+            '所有垃圾全部带走！包括果皮、糖纸、口罩线头这类微小垃圾，不要就地丢弃——自备加厚垃圾袋'
+          ]},
+          {type:'list', items:[
+            '走路扎营尽量踩已经踩实的老路，不要肆意踩踏新的植被，保护地表植物',
+            '不要采摘野花野果野生蘑菇——一来破坏环境，二来极容易误食中毒',
+            '排泄物尽量远离水源；条件允许携带简易如厕袋',
+            '不要在溪流里面洗刷带洗洁精的餐具'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'insurance', icon:'shield', cat:'保险·身体评估·下山事项',
+    brief:'户外专项保险购买要点、行前身体状态评估、下山护膝技巧',
+    sections:[
+      {
+        title:'户外保险',
+        blocks:[
+          {type:'warn', items:[
+            '普通旅游意外险很多不含登山徒步！出行前专门购买户外运动专项意外险',
+            '看清承保的海拔、徒步线路等级；高危线路一定要买好保险再出发'
+          ]}
+        ]
+      },
+      {
+        title:'行前身体评估',
+        blocks:[
+          {type:'list', items:[
+            '感冒、睡眠严重不足、身体疲惫的时候不要强行进山',
+            '高海拔线路前建议体检，心肺有问题谨慎前往'
+          ]},
+          {type:'warn', items:[
+            '登山不要逞强，量力而行，累了就及时下撤，不要硬冲顶峰'
+          ]}
+        ]
+      },
+      {
+        title:'下山注意事项（很多人受伤发生在下山）',
+        blocks:[
+          {type:'list', items:[
+            '下山膝盖压力极大，优先使用登山杖分担冲击力；膝盖不好建议佩戴护膝',
+            '放慢速度，小碎步往下走，严禁奔跑下坡；湿滑石头每一步踩稳再移动',
+            '下山之后不要立刻坐下猛灌冰水：先慢走平缓几分钟，再补水休息',
+            '回家之后检查手脚有无擦伤、蜱虫'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'altitude', icon:'mountain', cat:'高海拔徒步补充',
+    brief:'高原适应原则、高反识别与处置、昼夜温差与防晒',
+    sections:[
+      {
+        title:'高原适应原则',
+        blocks:[
+          {type:'list', items:[
+            '不要急速爬升；遵循"高走低睡"原则——白天往上走，晚上回更低海拔睡觉适应',
+            '昼夜温差极大，即使白天很热，背包里常备羽绒保暖层',
+            '防晒等级要更高——高原紫外线很强，容易晒伤嘴唇面部'
+          ]},
+          {type:'warn', items:[
+            '出现持续头痛呕吐失眠属于高原反应：立刻停止向上，优先下降海拔，不要硬扛',
+            '严重高原病有生命危险，及时就医吸氧'
+          ]}
+        ]
+      }
+    ]
+  },
+  {
+    id:'rules', icon:'flag', cat:'户外出行十条铁律',
+    brief:'总结备忘：结伴、看预警、离线导航、带够水、报备行程、无痕下山',
+    sections:[
+      {
+        title:'铁律清单',
+        blocks:[
+          {type:'steps', items:[
+            '绝不独自走野线徒步；至少结伴 2 人以上',
+            '进山前查 72 小时气象 + 地质预警；橙色预警直接取消行程',
+            '离线轨迹提前下载，手机保持电量；带纸质地图指南针备份',
+            '水宁多勿少；坚决不直接喝野外生水',
+            '背包预留 1/3 空间放应急保命物资',
+            '行程报备亲友，定时报平安',
+            '不采摘野果野菜野菌；遇到野生动物缓慢避让',
+            '所有垃圾全部带出山野；无痕出行',
+            '量力而行，状态不好优先下撤，不攀比冲顶',
+            '遇险原地停留，发送 SOS 求救，不要盲目乱跑消耗体力，等待救援'
+          ]}
+        ]
+      }
+    ]
+  }
+];
+
+/* ================= FAQ ================= */
+var FAQS = [
+  { id:'act', icon:'flag', cat:'活动报名', q:'最近有什么值得参加的徒步活动？' },
+  { id:'gear', icon:'tent', cat:'装备指南', q:'新手露营需要准备哪些装备？' },
+  { id:'safe', icon:'mountain', cat:'安全常识', q:'第一次登山有什么注意事项？' },
+  { id:'care', icon:'drop', cat:'装备保养', q:'装备怎么保养才能用得久？' },
+  { id:'trRoute', icon:'ticket', cat:'火车票', q:'徐州到济南的火车有哪些？' },
+  { id:'trCode', icon:'clock', cat:'车次时刻', q:'G101次列车经过哪些站？' },
+  { id:'cpCheap', icon:'ticket', cat:'最便宜方案', q:'从成都到大理最便宜的火车票方案？' },
+  { id:'cpTransfer', icon:'clock', cat:'中转比价', q:'徐州到大理转车怎么最省钱？' },
+  { id:'bulu', icon:'compass', cat:'轨迹导航', q:'两步路户外助手 · 轨迹下载与离线导航（网页版）', url:'https://www.2bulu.com/' },
+  { id:'r12306', icon:'ticket', cat:'购票出行', q:'中国铁路 12306 · 官方购票（网页版）', url:'https://www.12306.cn/index/' },
+  { id:'qweather', icon:'sun', cat:'气象服务', q:'和风天气 · 气象数据与预警（网页版）', url:'https://www.qweather.com/' },
+  { id:'chinalife', icon:'shield', cat:'保险保障', q:'中国人寿 · 保险产品与服务（网页版）', url:'https://www.chinalife.com.cn/' }
+];
+
+var ICONS = {
+  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>',
+  tent:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3z"/><path d="M12 3v17"/></svg>',
+  mountain:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>',
+  drop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.7S5.5 9.6 5.5 14a6.5 6.5 0 0 0 13 0c0-4.4-6.5-11.3-6.5-11.3z"/></svg>',
+  sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  ticket:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v3a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1v-3a3 3 0 0 1 0-6V6a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1z"/><path d="M13 5v2m0 5v2m0 5v2"/></svg>',
+  bag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 7V6a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v1"/><rect x="3" y="7" width="18" height="14" rx="3"/><path d="M12 11v5m-3-2h6"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-3.5 8-10V5l-8-3-8 3v7c0 6.5 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
+  sparkle:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6m0 8v6M2 12h6m8 0h6"/><path d="m5.6 5.6 3.5 3.5m5.8 5.8 3.5 3.5M18.4 5.6l-3.5 3.5m-5.8 5.8-3.5 3.5"/></svg>',
+  chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></svg>',
+  docs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  compass:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>',
+  flame:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 4-4 5.5-4 10a4 4 0 0 0 8 0c0-1.5-.5-2.5-1-3.5-1.5 1-2 2-2 2s.5-5-1-8.5z"/></svg>',
+  leaf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 16-9 0 12-4 16-9 16z"/><path d="M4 21c4-6 8-9 12-11"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.5-1.5 3-3.3 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3.4 1-4.5 2.5C10.9 4 9.3 3 7.5 3A5.5 5.5 0 0 0 2 8.5c0 2.2 1.5 4 3 5.5l7 7z"/></svg>',
+  meal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M2 11h20"/><path d="M9 7c0-1 .5-1.5 1-2"/></svg>'
+};
+
+/* ================= 全局状态 ================= */
+var cloud = null;
+var models = [];
+var currentModelId = localStorage.getItem('yanzi_model') || null;
+var conversationId = localStorage.getItem('yanzi_conv_id') || genId();
+var history = [];               // [{role, content, cardHtml?}]
+var generating = false;
+var abortController = null;
+var lastFailedPrompt = null;
+var lastSendTime = 0;
+var convs = loadConvs();
+var currentView = 'welcome';
+var toastTimer = null;
+
+var viewRoot = $('viewRoot');
+var composer = $('composer');
+var askInput = $('askInput');
+var askSend = $('askSend');
+var askStop = $('askStop');
+
+function genId(){
+  return (crypto.randomUUID ? crypto.randomUUID() : 'conv-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+}
+
+/* ================= Toast ================= */
+function toast(msg){
+  $('toastMsg').textContent = msg;
+  var t = $('toast');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+/* ================= 装备购物车（装备清单） ================= */
+var CART_KEY = 'yanzi_cart_v1';
+function loadCart(){
+  try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); }
+  catch(e){ return []; }
+}
+function saveCart(items){
+  localStorage.setItem(CART_KEY, JSON.stringify(items));
+}
+var cartItems = loadCart();
+function cartAdd(item){
+  var exists = cartItems.find(function(x){ return x.name === item.name; });
+  if(exists){ return false; }
+  cartItems.push({ name: item.name, price: item.price, kw: item.kw || item.name, checked: true });
+  saveCart(cartItems);
+  renderCart();
+  return true;
+}
+function cartRemove(name){
+  cartItems = cartItems.filter(function(x){ return x.name !== name; });
+  saveCart(cartItems);
+  renderCart();
+}
+function cartToggle(name){
+  var it = cartItems.find(function(x){ return x.name === name; });
+  if(it){ it.checked = !it.checked; saveCart(cartItems); renderCart(); }
+}
+function cartPriceRange(priceStr){
+  /* 从 "¥900-1300" 或 "¥268" 提取数值区间，取中值用于合计 */
+  var nums = String(priceStr || '').match(/\d+(?:\.\d+)?/g);
+  if(!nums){ return 0; }
+  var arr = nums.map(Number);
+  var lo = Math.min.apply(null, arr), hi = Math.max.apply(null, arr);
+  return (lo + hi) / 2;
+}
+function cartTotal(){
+  var sel = cartItems.filter(function(x){ return x.checked; });
+  var sum = sel.reduce(function(acc, x){ return acc + cartPriceRange(x.price); }, 0);
+  return { sel: sel.length, total: cartItems.length, sum: Math.round(sum) };
+}
+function renderCart(){
+  var body = $('cartBody');
+  var floatBtn = $('cartFloat');
+  var count = $('cartCount');
+  if(!body){ return; }
+  if(!cartItems.length){
+    body.innerHTML = '<div class="cart-empty">清单还是空的。<br>问小燕推荐装备（比如"38升重装包需要什么"），<br>点卡片上的「加入清单」就能攒起来。</div>';
+    floatBtn.style.display = 'none';
+    count.style.display = 'none';
+  }else{
+    body.innerHTML = cartItems.map(function(x){
+      return '<div class="cart-item">'+
+        '<input type="checkbox" class="cart-ck" '+(x.checked?'checked':'')+' data-name="'+esc(x.name)+'">'+
+        '<div class="cart-info"><div class="cart-nm">'+esc(x.name)+'</div>'+
+        '<div class="cart-pr">'+esc(x.price)+' <small>参考价</small></div></div>'+
+        '<button class="cart-del" data-name="'+esc(x.name)+'" aria-label="删除">×</button>'+
+        '</div>';
+    }).join('');
+    floatBtn.style.display = 'flex';
+    count.style.display = 'flex';
+    count.textContent = cartItems.length;
+    body.querySelectorAll('.cart-ck').forEach(function(ck){
+      ck.addEventListener('change', function(){ cartToggle(ck.getAttribute('data-name')); });
+    });
+    body.querySelectorAll('.cart-del').forEach(function(d){
+      d.addEventListener('click', function(){ cartRemove(d.getAttribute('data-name')); });
+    });
+  }
+  var t = cartTotal();
+  $('cartSel').textContent = t.sel;
+  $('cartTot').textContent = t.total;
+  $('cartSum').textContent = '¥' + t.sum;
+}
+function openCart(){
+  $('cartPanel').classList.add('open');
+  $('cartMask').classList.add('open');
+}
+function closeCart(){
+  $('cartPanel').classList.remove('open');
+  $('cartMask').classList.remove('open');
+}
+function exportCart(){
+  var sel = cartItems.filter(function(x){ return x.checked; });
+  if(!sel.length){ toast('请先勾选要购买的装备'); return; }
+  var lines = [];
+  lines.push('燕子户外 · 装备购买清单');
+  lines.push('生成时间：' + new Date().toLocaleString('zh-CN'));
+  lines.push('====================================');
+  sel.forEach(function(x, i){
+    lines.push((i+1) + '. ' + x.name);
+    lines.push('   参考价：' + x.price + '（以下单页为准）');
+    lines.push('   搜索关键词：' + x.kw);
+    lines.push('');
+  });
+  lines.push('------------------------------------');
+  lines.push('合计（参考价区间中值）：¥' + cartTotal().sum);
+  lines.push('');
+  lines.push('提示：参考价为大致区间、非实时价。');
+  lines.push('淘宝搜同款：https://s.taobao.com/search?q=关键词');
+  lines.push('京东搜同款：https://search.jd.com/Search?keyword=关键词');
+  var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '燕子户外装备清单.txt';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  toast('清单已导出');
+}
+
+/* ================= 行程卡（[trip] 标签协议） ================= */
+function parseTripCards(content){
+  var cards = [];
+  var text = String(content).replace(/\[trip\]([\s\S]*?)\[\/trip\]/g, function(_, inner){
+    cards.push(inner.trim());
+    return '';
+  });
+  text = text.replace(/\[trip\][\s\S]*$/, '');
+  return { text: text.trim(), cards: cards };
+}
+/* 解析行程卡内部结构：
+   第1行=标题（可含|副标题）；之后 [Day N] 或 [第N天] 开头的段为一天，
+   天内每行 "- 时间 内容" 为一项，其余行按说明处理 */
+function parseTripBody(raw){
+  var lines = raw.split('\n').map(function(s){ return s.trim(); }).filter(Boolean);
+  var title = '行程安排', sub = '';
+  var days = [];
+  var cur = null;
+  var titleSet = false;
+  var notes = [];
+  lines.forEach(function(line){
+    if(!titleSet){
+      titleSet = true;
+      var parts = line.split('|');
+      title = parts[0].trim() || '行程安排';
+      if(parts[1]){ sub = parts[1].trim(); }
+      return;
+    }
+    var dm = line.match(/^\[(?:Day\s*)?(\d+)(?:天|日)?\]\s*(.*)$/i) || line.match(/^第(\d+)天[:：]?\s*(.*)$/);
+    if(dm){
+      cur = { day: '第' + dm[1] + '天', title: dm[2] || '', items: [] };
+      days.push(cur);
+      return;
+    }
+    var im = line.match(/^[-•*]\s*(?:(\d{1,2}[:：]\d{2})\s*)?(.*)$/);
+    if(cur && im){
+      cur.items.push({ time: im[1] || '', text: im[2] });
+      return;
+    }
+    /* 注意事项/提示类行：统一归入顶层备注 */
+    if(/^(注意事项|注意|提示|提醒|风险提示|安全提示|备注|Warning|Note)/.test(line)){
+      notes.push(line.replace(/^注意事项[:：]\s*/, '').replace(/^(注意|提示|提醒|风险提示|安全提示|备注)[:：]\s*/, ''));
+      return;
+    }
+    /* 不在天内则进备注 */
+    if(!cur){ notes.push(line); }
+    else if(cur){ if(!cur.note){ cur.note = []; } cur.note.push(line); }
+  });
+  return { title: title, sub: sub, days: days, notes: notes };
+}
+function tripCardHtml(raw){
+  var t = parseTripBody(raw);
+  var html = '<div class="trip-card">'+
+    '<div class="trip-head"><div><div class="trip-title">'+esc(t.title)+'</div>'+
+    (t.sub ? '<div class="trip-sub">'+esc(t.sub)+'</div>' : '')+'</div>'+
+    '<button class="trip-export" data-trip="'+encodeURIComponent(raw)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>导出行程卡</button></div>';
+  if(t.days.length){
+    html += t.days.map(function(d){
+      var items = d.items.length ? d.items.map(function(it){
+        return '<div class="trip-item"><span class="trip-time">'+(it.time ? esc(it.time) : '—')+'</span><span>'+esc(it.text)+'</span></div>';
+      }).join('') : '';
+      return '<div class="trip-day"><div class="trip-day-h">'+esc(d.day)+(d.title ? ' · '+esc(d.title) : '')+'</div>'+items+
+        (d.note ? '<div class="trip-note">'+d.note.map(esc).join('<br>')+'</div>' : '')+'</div>';
+    }).join('');
+  }
+  if(t.notes.length){
+    html += '<div class="trip-note">'+t.notes.map(esc).join('<br>')+'</div>';
+  }
+  html += '<div class="tr-note">行程为建议方案，出发前请结合实际天气、体力与当地管控调整；建议将行程告知家人或队友。</div>';
+  html += '</div>';
+  return html;
+}
+function tripCardsHtml(cards){
+  if(!cards.length){ return ''; }
+  return cards.map(tripCardHtml).join('');
+}
+function exportTrip(raw){
+  var t = parseTripBody(raw);
+  var lines = [];
+  lines.push(t.title + (t.sub ? ' · ' + t.sub : ''));
+  lines.push('====================================');
+  t.days.forEach(function(d){
+    lines.push('');
+    lines.push('【' + d.day + '】' + (d.title ? ' ' + d.title : ''));
+    d.items.forEach(function(it){
+      lines.push((it.time ? it.time + '  ' : '  ') + it.text);
+    });
+    if(d.note){ d.note.forEach(function(n){ lines.push('  · ' + n); }); }
+  });
+  if(t.notes.length){ lines.push(''); lines.push('【注意事项】'); t.notes.forEach(function(n){ lines.push('· ' + n); }); }
+  var blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (t.title || '行程') + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  toast('行程卡已导出');
+}
+
+/* ================= 会话持久化（保留 3 天，到期自动清理） ================= */
+var CONV_TTL = 3 * 24 * 60 * 60 * 1000;
+function loadConvs(){
+  try { return JSON.parse(localStorage.getItem('yanzi_convs_v2') || '[]'); }
+  catch(e){ return []; }
+}
+function cleanupConvs(){
+  var now = Date.now();
+  var n = convs.length;
+  convs = convs.filter(function(c){ return now - (c.time || 0) < CONV_TTL; });
+  if(convs.length !== n){ saveConvs(); }
+  return n - convs.length;
+}
+function ttlLeft(t){
+  var left = CONV_TTL - (Date.now() - (t || 0));
+  if(left <= 0){ return '已过期'; }
+  var h = Math.ceil(left / 3600000);
+  return h >= 48 ? ('剩' + Math.floor(h / 24) + '天') : ('剩' + h + '小时');
+}
+function saveConvs(){
+  var now = Date.now();
+  convs = convs.filter(function(c){ return now - (c.time || 0) < CONV_TTL; });
+  localStorage.setItem('yanzi_convs_v2', JSON.stringify(convs.slice(0, 20)));
+}
+function saveCurrentConv(){
+  if(!history.length){ return; }
+  var title = (history[0].content || '新对话').slice(0, 24);
+  var idx = convs.findIndex(function(c){ return c.id === conversationId; });
+  var item = { id: conversationId, title: title, msgs: history.slice(-30), time: Date.now() };
+  if(idx >= 0){ convs[idx] = item; } else { convs.unshift(item); }
+  convs.sort(function(a, b){ return b.time - a.time; });
+  saveConvs();
+  renderRecent($('searchInput').value.trim());
+}
+function renderRecent(filter){
+  var box = $('recentList');
+  box.innerHTML = '';
+  var list = filter ? convs.filter(function(c){ return c.title.indexOf(filter) >= 0; }) : convs;
+  if(!list.length){
+    var d = document.createElement('div');
+    d.className = 'recent-empty';
+    d.innerHTML = filter ? '没有匹配的对话' : '还没有对话<br>问点关于户外的问题吧';
+    box.appendChild(d);
+    return;
+  }
+  list.forEach(function(c){
+    var b = document.createElement('button');
+    b.className = 'recent-item' + (c.id === conversationId && history.length ? ' active' : '');
+    b.innerHTML = ICONS.chat + '<span>' + esc(c.title) + '</span><span class="recent-ttl">' + ttlLeft(c.time) + '</span>';
+    b.title = c.title;
+    b.onclick = function(){ loadConversation(c.id); };
+    box.appendChild(b);
+  });
+}
+function loadConversation(id){
+  var c = convs.find(function(x){ return x.id === id; });
+  if(!c || generating){ return; }
+  conversationId = c.id;
+  localStorage.setItem('yanzi_conv_id', conversationId);
+  history = c.msgs.slice();
+  lastFailedPrompt = null;
+  renderChatView();
+  history.forEach(function(m){
+    if(m.role === 'user'){ appendUserBubble(m.content); }
+    else { appendAiBubble(m.content, m.cardHtml || null, m.badge || ''); }
+  });
+  renderRecent($('searchInput').value.trim());
+  scrollBottom();
+}
+
+/* ================= 模型 ================= */
+function initCloud(){
+  cloud = WorkBuddyCloud.createWorkBuddyCloud({
+    endpoint: publicConfig.endpoint,
+    publishableKey: publicConfig.publishableKey,
+  });
+}
+
+async function loadModels(){
+  try { models = await cloud.llm.models.list(); }
+  catch(e){ models = []; }
+  var enabled = models.filter(function(m){ return m.disabled !== true; });
+  var sel = $('modelSelect');
+  sel.innerHTML = '';
+  var og1 = document.createElement('optgroup');
+  og1.label = 'DeepSeek 官方直连（自备 Key）';
+  DEEPSEEK_CONFIG.models.forEach(function(m){
+    var o = document.createElement('option');
+    o.value = 'official:' + m.id;
+    o.textContent = m.name + ' · 官方';
+    og1.appendChild(o);
+  });
+  sel.appendChild(og1);
+  if(enabled.length){
+    var og2 = document.createElement('optgroup');
+    og2.label = '云端模型（免密钥）';
+    enabled.forEach(function(m){
+      var o = document.createElement('option');
+      o.value = m.id;
+      o.textContent = m.name || m.id;
+      og2.appendChild(o);
+    });
+    sel.appendChild(og2);
+  }
+  sel.disabled = false;
+  var allIds = DEEPSEEK_CONFIG.models.map(function(m){ return 'official:' + m.id; }).concat(enabled.map(function(m){ return m.id; }));
+  if(!currentModelId || allIds.indexOf(currentModelId) < 0){
+    currentModelId = 'official:' + DEEPSEEK_CONFIG.models[0].id;
+  }
+  sel.value = currentModelId;
+}
+$('modelSelect').addEventListener('change', function(){
+  currentModelId = this.value;
+  localStorage.setItem('yanzi_model', currentModelId);
+});
+function currentModelLabel(){
+  var sel = $('modelSelect');
+  return sel && sel.selectedOptions && sel.selectedOptions[0] ? sel.selectedOptions[0].textContent : '';
+}
+
+/* ================= 视图渲染 ================= */
+function esc(s){ var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+
+function setView(name){
+  currentView = name;
+  $('mainArea').classList.toggle('chatting', name === 'chat');
+}
+function moveComposer(toDock){
+  composer.style.display = '';
+  if(toDock){ $('composerDock').appendChild(composer); }
+}
+
+function renderWelcome(){
+  setView('welcome');
+  viewRoot.innerHTML =
+    '<div class="welcome">'+
+      '<div class="w-logo"><img src="assets/logo.png" alt="燕子户外"></div>'+
+      '<div class="w-title">燕子户外</div>'+
+      '<div class="w-lead">户外出行，你想了解什么？</div>'+
+      '<div class="w-sub">关于活动、装备或户外攻略，你想问什么？</div>'+
+      '<span class="w-scope">'+ICONS.docs+'全部资料</span>'+
+      '<div id="composerSlot" style="width:100%"></div>'+
+      '<div class="faq-grid">'+
+        FAQS.map(function(f){
+          return '<button class="faq-card" data-q="'+esc(f.q)+'"'+(f.url ? ' data-url="'+esc(f.url)+'"' : '')+'>'+
+            '<span class="faq-cat">'+ICONS[f.icon]+esc(f.cat)+(f.url ? '<span class="faq-ext">外链</span>' : '')+'</span>'+
+            '<span class="faq-q">'+esc(f.q)+'</span>'+
+            '<span class="faq-go">'+(f.url ? '去打开' : '去看看')+ICONS.arrow+'</span>'+
+          '</button>';
+        }).join('')+
+      '</div>'+
+      '<div class="w-foot">'+
+        '<div class="disclaimer">回答仅供参考，请以燕子户外官方活动与信息为准。</div>'+
+        '<button class="catalog-link" id="btnBrowse">'+ICONS.docs+'进入户外知识资料库'+ICONS.arrow+'</button>'+
+      '</div>'+
+    '</div>';
+  composer.style.display = '';
+  $('composerSlot').appendChild(composer);
+  askInput.placeholder = '问活动、装备、攻略，或查火车票 / 车次…';
+  viewRoot.querySelectorAll('.faq-card').forEach(function(card){
+    card.onclick = function(){
+      var url = card.getAttribute('data-url');
+      if(url){ window.open(url, '_blank'); return; }
+      send(card.getAttribute('data-q'));
+    };
+  });
+  $('btnBrowse').onclick = renderCatalog;
+  askInput.focus();
+}
+
+function renderChatView(){
+  setView('chat');
+  viewRoot.innerHTML = '<div class="chat" id="chatThread"></div>';
+  moveComposer(true);
+  askInput.placeholder = '继续问点别的…';
+}
+
+function scrollBottom(){
+  var c = document.querySelector('.content');
+  if(c){ c.scrollTop = c.scrollHeight; }
+}
+
+/* ================= 消息气泡 ================= */
+function appendUserBubble(text){
+  var thread = $('chatThread');
+  var d = document.createElement('div');
+  d.className = 'bubble-user';
+  d.textContent = text;
+  thread.appendChild(d);
+  scrollBottom();
+}
+
+/* ================= 商品购买卡片（[shop] 标签解析） ================= */
+function parseShopCards(content){
+  var cards = [];
+  var text = String(content).replace(/\[shop\]([\s\S]*?)\[\/shop\]/g, function(_, inner){
+    var parts = inner.split('|').map(function(s){ return s.trim(); });
+    if(parts.length >= 2 && parts[0] && parts[1]){
+      cards.push({ name: parts[0], price: parts[1], kw: parts[2] || parts[0] });
+    }
+    return '';
+  });
+  /* 流式过程中未闭合的 [shop] 暂不显示 */
+  text = text.replace(/\[shop\][\s\S]*$/, '');
+  return { text: text.trim(), cards: cards };
+}
+function shopCardsHtml(cards){
+  if(!cards.length){ return ''; }
+  return '<div class="shop-grid">' + cards.map(function(c){
+    var kw = encodeURIComponent(c.kw);
+    var inCart = cartItems.some(function(x){ return x.name === c.name; });
+    return '<div class="shop-card">'+
+      '<div class="shop-name">'+esc(c.name)+'</div>'+
+      '<div class="shop-price">'+esc(c.price)+'<br><small>参考价 · 非实时，以下单页为准</small></div>'+
+      '<div class="shop-links">'+
+        '<a class="shop-btn tb" href="https://s.taobao.com/search?q='+kw+'" target="_blank" rel="noopener">淘宝搜同款</a>'+
+        '<a class="shop-btn jd" href="https://search.jd.com/Search?keyword='+kw+'" target="_blank" rel="noopener">京东搜同款</a>'+
+      '</div>'+
+      '<button class="shop-add'+(inCart?' added':'')+'" data-name="'+esc(c.name)+'" data-price="'+esc(c.price)+'" data-kw="'+esc(c.kw)+'">'+(inCart?'已在清单':'加入装备清单')+'</button>'+
+    '</div>';
+  }).join('') + '</div>';
+}
+function renderAnswer(content){
+  var t = parseTripCards(content);
+  var r = parseShopCards(t.text);
+  return renderMarkdown(r.text) + tripCardsHtml(t.cards) + shopCardsHtml(r.cards);
+}
+
+function appendAiBubble(content, cardHtml, badge){
+  var thread = $('chatThread');
+  var d = document.createElement('div');
+  d.className = 'bubble-ai';
+  d.innerHTML =
+    '<div class="ai-head">'+
+      '<div class="ai-avatar"><img src="assets/logo.png" alt="燕子户外"></div>'+
+      '<div class="ai-name">燕子户外助手</div>'+
+      '<span class="ai-badge">'+esc(badge || currentModelLabel() || 'AI 助手')+'</span>'+
+    '</div>'+
+    '<div class="ai-text">'+(cardHtml || renderAnswer(content))+'</div>';
+  thread.appendChild(d);
+  scrollBottom();
+  return d;
+}
+
+/* ================= Markdown 轻量渲染（先转义，防注入） ================= */
+function renderMarkdown(raw){
+  var safe = String(raw).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  var lines = safe.split('\n');
+  var html = '', inUl = false, inOl = false, tableBuf = [], inTable = false;
+  function closeLists(){
+    if(inUl){ html += '</ul>'; inUl = false; }
+    if(inOl){ html += '</ol>'; inOl = false; }
+  }
+  function flushTable(){
+    if(!inTable){ return; }
+    if(tableBuf.length){
+      var head = tableBuf[0];
+      var body = tableBuf.slice(1);
+      html += '<table><thead><tr>' + head.map(function(c){ return '<th>'+c+'</th>'; }).join('') + '</tr></thead><tbody>' +
+        body.map(function(r){ return '<tr>' + r.map(function(c){ return '<td>'+c+'</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>';
+    }
+    tableBuf = []; inTable = false;
+  }
+  function inline(t){
+    return t.replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
+  for(var i = 0; i < lines.length; i++){
+    var trimmed = lines[i].trim();
+    if(/^\|.*\|$/.test(trimmed)){
+      var cells = trimmed.slice(1, -1).split('|').map(function(c){ return inline(c.trim()); });
+      if(inTable && /^\|[\s:|-]+\|$/.test(trimmed)){ continue; }
+      tableBuf.push(cells); inTable = true;
+      continue;
+    } else { flushTable(); }
+    if(!trimmed){ closeLists(); continue; }
+    var h = trimmed.match(/^(#{1,4})\s+(.*)$/);
+    if(h){ closeLists(); var lv = Math.min(h[1].length + 2, 5); html += '<h'+lv+'>'+inline(h[2])+'</h'+lv+'>'; continue; }
+    var ul = trimmed.match(/^[-*•]\s+(.*)$/);
+    if(ul){ if(inOl){ html += '</ol>'; inOl = false; } if(!inUl){ html += '<ul>'; inUl = true; } html += '<li>'+inline(ul[1])+'</li>'; continue; }
+    var ol = trimmed.match(/^\d+[.、)]\s+(.*)$/);
+    if(ol){ if(inUl){ html += '</ul>'; inUl = false; } if(!inOl){ html += '<ol>'; inOl = true; } html += '<li>'+inline(ol[1])+'</li>'; continue; }
+    closeLists();
+    html += '<p>'+inline(trimmed)+'</p>';
+  }
+  closeLists(); flushTable();
+  return html;
+}
+
+/* ================= DeepSeek 官方直连（流式 SSE + Function Calling） ================= */
+/* 单次非流式请求：用于工具决策轮，需要拿到完整的 tool_calls */
+async function dsRequestOnce(modelId, messages, tools, signal, temperature){
+  var body = {
+    model: modelId,
+    messages: messages,
+    stream: false,
+    temperature: (typeof temperature === 'number') ? temperature : 0.3,
+  };
+  if(tools && tools.length){ body.tools = tools; body.tool_choice = 'auto'; }
+  var resp = await fetch(DEEPSEEK_CONFIG.baseUrl + '/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + DEEPSEEK_CONFIG.apiKey,
+    },
+    body: JSON.stringify(body),
+    signal: signal,
+  });
+  if(!resp.ok){
+    var msg = 'HTTP ' + resp.status;
+    try { var j = await resp.json(); msg = (j.error && j.error.message) || msg; } catch(_e){}
+    var e = new Error(msg);
+    e.error = { code: 'http_' + resp.status, message: msg };
+    throw e;
+  }
+  return await resp.json();
+}
+
+/* 流式请求：用于最终组织回答 */
+async function callDeepSeekOfficial(modelId, context, onDelta, signal){
+  var resp = await fetch(DEEPSEEK_CONFIG.baseUrl + '/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + DEEPSEEK_CONFIG.apiKey,
+    },
+    body: JSON.stringify({ model: modelId, messages: context, stream: true, temperature: 0.8 }),
+    signal: signal,
+  });
+  if(!resp.ok){
+    var msg = 'HTTP ' + resp.status;
+    try { var j = await resp.json(); msg = (j.error && j.error.message) || msg; } catch(_e){}
+    var e = new Error(msg);
+    e.error = { code: 'http_' + resp.status, message: msg };
+    throw e;
+  }
+  var reader = resp.body.getReader();
+  var decoder = new TextDecoder();
+  var text = '', buf = '';
+  for(;;){
+    var rd = await reader.read();
+    if(rd.done){ break; }
+    buf += decoder.decode(rd.value, { stream: true });
+    var lines = buf.split('\n');
+    buf = lines.pop() || '';
+    for(var i = 0; i < lines.length; i++){
+      var t = lines[i].trim();
+      if(t.indexOf('data:') !== 0){ continue; }
+      var data = t.slice(5).trim();
+      if(!data || data === '[DONE]'){ continue; }
+      try{
+        var chunk = JSON.parse(data);
+        var delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
+        if(delta && delta.reasoning_content && !text){ onDelta(null, true); }
+        if(delta && delta.content){ text += delta.content; onDelta(delta.content, false); }
+      }catch(_e2){}
+    }
+  }
+  return text;
+}
+
+/* ================= 天气（和风天气，经本地代理） =================
+   地点识别已交给 DeepSeek（query_weather 的 location 参数），此处只负责取数与拼装上下文。 */
+async function fetchWeather(loc){
+  var r = await fetch(PROXY + '/weather' + (loc ? ('?loc=' + encodeURIComponent(loc)) : ''));
+  var wj = await r.json();
+  if(!wj.ok){ throw new Error(wj.error || 'weather not ok'); }
+  return wj;
+}
+/* 浏览器定位：返回 { lat, lon } */
+function getUserLocation(){
+  return new Promise(function(resolve, reject){
+    if(!navigator.geolocation){
+      reject(new Error('浏览器不支持定位'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(p){
+      resolve({ lat: p.coords.latitude, lon: p.coords.longitude });
+    }, function(e){
+      reject(new Error('定位被拒绝或失败（' + e.code + '）'));
+    }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 });
+  });
+}
+function weatherContextText(wj){
+  var name = (wj.location && wj.location.name) || '徐州';
+  var adm = (wj.location && wj.location.adm) ? '（' + wj.location.adm + '）' : '';
+  var hourly = (wj.hourly || []).slice(0, 24);
+  var sunLine = '';
+  if(wj.sun && wj.sun.length){
+    var s0 = String(wj.sun[0] || ''), s1 = String(wj.sun[1] || '');
+    var t0 = (s0.match(/T(\d{2}:\d{2})/) || [null, s0])[1];
+    var t1 = (s1.match(/T(\d{2}:\d{2})/) || [null, s1])[1];
+    sunLine = '\n日出日落：日出 ' + t0 + '，日落 ' + t1;
+  }
+  var hourLine = hourly.length ? ('\n未来24小时逐时：' + hourly.map(function(h){ return h.fxTime.slice(11,16) + ' ' + h.text + ' ' + h.temp + '°C'; }).join('，')) : '';
+  return '\n\n【' + name + adm + '天气实况与7天预报（更新：' + (wj.updateTime || '') + '）】\n实况：' + wj.now.text + '，' + wj.now.temp + '°C，体感' + wj.now.feelsLike + '°C，' + wj.now.windDir + wj.now.windScale + '级，湿度' + wj.now.humidity + '%，降水' + wj.now.precip + 'mm' + sunLine + hourLine + '\n未来7天：' + wj.daily.map(function(d){ return d.fxDate + ' ' + d.textDay + '转' + d.textNight + '（' + d.tempMin + '~' + d.tempMax + '°C，' + d.windDirDay + d.windScaleDay + '级，降水' + d.precip + 'mm）'; }).join('；') + '\n请基于以上和风天气真实数据回答，日期按用户提到的今天/明天/后天对应 fxDate；若用户问的是山顶、垭口等高处，提醒山上气温通常明显低于预报值且风更大。';
+}
+
+/* 24 小时逐时温度曲线 + 日出日落卡 */
+function weatherCardHtml(wj){
+  var name = (wj.location && wj.location.name) || '徐州';
+  var adm = (wj.location && wj.location.adm) || '';
+  var hourly = (wj.hourly || []).slice(0, 24);
+  var now = wj.now || {};
+  var daily = wj.daily || [];
+  var sun = wj.sun || [];
+  var html = '<div class="wx-card">';
+  /* 头部 */
+  html += '<div class="wx-head">'+
+    '<div class="wx-title">'+esc(name)+' 天气<span class="tr-badge">和风天气</span></div>'+
+    '<div class="wx-sub">'+esc(adm)+' · 更新 '+esc((wj.updateTime||'').slice(11,16))+ ' · '+esc(now.text||'')+' '+esc(now.temp||'')+'°C 体感 '+esc(now.feelsLike||'')+'°C</div>'+
+    '</div>';
+  /* 日出日落 + 关键指标 */
+  html += '<div class="wx-stats">';
+  if(sun.length){
+    var sr = String(sun[0] || '');
+    var ss = String(sun[1] || '');
+    /* 提取 HH:MM（兼容 "06:15" 与 "2026-09-22T06:15+08:00" 两种格式） */
+    var srTime = (sr.match(/T(\d{2}:\d{2})/) || sr.match(/(\d{2}:\d{2})/) || [null,'--'])[1];
+    var ssTime = (ss.match(/T(\d{2}:\d{2})/) || ss.match(/(\d{2}:\d{2})/) || [null,'--'])[1];
+    html += '<div class="wx-stat"><span class="wx-sv">'+ICONS.sun+'</span><span class="wx-sl">日出 '+esc(srTime)+'</span></div>'+
+      '<div class="wx-stat"><span class="wx-sv">'+ICONS.sun+'</span><span class="wx-sl">日落 '+esc(ssTime)+'</span></div>';
+  }
+  html += '<div class="wx-stat"><span class="wx-sl">湿度 '+esc(now.humidity||'--')+'%</span></div>'+
+    '<div class="wx-stat"><span class="wx-sl">'+esc(now.windDir||'')+' '+esc(now.windScale||'')+'级</span></div>'+
+    '</div>';
+  /* 24 小时逐时曲线 */
+  if(hourly.length){
+    var temps = hourly.map(function(h){ return +h.temp; });
+    var tmax = Math.max.apply(null, temps), tmin = Math.min.apply(null, temps);
+    var range = (tmax - tmin) || 1;
+    var W = 600, H = 120, padL = 30, padB = 22, padT = 10;
+    var iw = (W - padL - 10) / (hourly.length - 1);
+    var pts = hourly.map(function(h, i){
+      var x = padL + i * iw;
+      var y = padT + (H - padT - padB) * (1 - (h.temp - tmin) / range);
+      return { x: x, y: y, h: h };
+    });
+    var line = pts.map(function(p, i){ return (i ? 'L' : 'M') + p.x.toFixed(1) + ' ' + p.y.toFixed(1); }).join(' ');
+    var dots = pts.map(function(p){ return '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="2.4" fill="var(--green)" stroke="var(--card)"/>'; }).join('');
+    var labels = pts.map(function(p, i){
+      /* 每 3 小时标注一次时间 */
+      var hour = +p.h.fxTime.slice(11, 13);
+      if(hour % 3 === 0 || i === 0 || i === hourly.length - 1){
+        var lbl = p.h.fxTime.slice(11, 13) + ':00';
+        return '<text x="'+p.x.toFixed(1)+'" y="'+(H-6)+'" text-anchor="middle" font-size="10" fill="var(--muted)">'+lbl+'</text>';
+      }
+      return '';
+    }).join('');
+    var tempLabels = pts.map(function(p, i){
+      if(i % 3 === 0 || i === hourly.length - 1){
+        return '<text x="'+(p.x-8).toFixed(1)+'" y="'+(p.y+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--green-deep)">'+p.h.temp+'°</text>';
+      }
+      return '';
+    }).join('');
+    var rainLabels = hourly.filter(function(h){ return /雨|雪|雷|冰/.test(h.text); }).map(function(h){
+      var idx = hourly.indexOf(h);
+      var p = pts[idx];
+      return '<text x="'+p.x.toFixed(1)+'" y="'+(p.y-6).toFixed(1)+'" text-anchor="middle" font-size="10" fill="var(--orange-deep)">'+esc(h.text)+'</text>';
+    }).join('');
+    html += '<div class="wx-hourly-title">未来 24 小时逐时预报</div>'+
+      '<div class="wx-chart"><svg viewBox="0 0 '+W+' '+H+'" width="100%" preserveAspectRatio="xMidYMid meet">'+
+      '<line x1="'+padL+'" y1="'+(H-padB)+'" x2="'+(W-10)+'" y2="'+(H-padB)+'" stroke="var(--line)" stroke-width="0.5"/>'+
+      '<polyline points="'+pts.map(function(p){ return p.x.toFixed(1)+','+p.y.toFixed(1); }).join(' ')+'" fill="none" stroke="var(--green)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>'+
+      dots + labels + tempLabels + rainLabels +
+      '</svg></div>';
+  }
+  /* 7 天概览 */
+  if(daily.length){
+    html += '<div class="wx-days">' + daily.slice(0, 7).map(function(d){
+      return '<div class="wx-day"><div class="wx-d1">'+esc(d.fxDate.slice(5).replace('-','/'))+'</div>'+
+        '<div class="wx-d2">'+esc(d.textDay)+'</div>'+
+        '<div class="wx-d3">'+esc(d.tempMin)+'~'+esc(d.tempMax)+'°C</div>'+
+        '<div class="wx-d4">'+esc(d.windDirDay)+' '+esc(d.windScaleDay)+'级</div></div>';
+    }).join('') + '</div>';
+  }
+  html += '<div class="tr-note">数据来自和风天气实时接口；山区/山顶气温通常明显低于城区预报，风更大，出行请留足余量。</div>';
+  html += '</div>';
+  return html;
+}
+
+/* ================= 火车票查询（12306，经本地代理） ================= */
+function pad2(n){ return (n < 10 ? '0' : '') + n; }
+function fmtDate(d){ return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+
+function parseAskDate(q){
+  var now = new Date(), m;
+  if(/大后天/.test(q)){ now.setDate(now.getDate() + 3); return fmtDate(now); }
+  if(/后天/.test(q)){ now.setDate(now.getDate() + 2); return fmtDate(now); }
+  if(/明天|明日/.test(q)){ now.setDate(now.getDate() + 1); return fmtDate(now); }
+  if(/今天|今日/.test(q)){ return fmtDate(now); }
+  if((m = q.match(/(\d{4})[-年\/.](\d{1,2})[-月\/.](\d{1,2})/))){
+    return m[1] + '-' + pad2(+m[2]) + '-' + pad2(+m[3]);
+  }
+  if((m = q.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[日号]/))){
+    var dt = new Date(now.getFullYear(), +m[1] - 1, +m[2]);
+    if(dt < now){ dt.setFullYear(now.getFullYear() + 1); }
+    return fmtDate(dt);
+  }
+  return fmtDate(now);
+}
+
+function parsePeriod(q){
+  if(/凌晨/.test(q)){ return { label: '凌晨', from: 0, to: 360 }; }
+  if(/早上|早晨|上午/.test(q)){ return { label: '上午', from: 360, to: 720 }; }
+  if(/中午/.test(q)){ return { label: '中午', from: 660, to: 840 }; }
+  if(/下午/.test(q)){ return { label: '下午', from: 720, to: 1080 }; }
+  if(/傍晚/.test(q)){ return { label: '傍晚', from: 1020, to: 1140 }; }
+  if(/晚上|夜里|夜间/.test(q)){ return { label: '晚上', from: 1080, to: 1440 }; }
+  return null;
+}
+
+/* 注：车次/天气的意图识别已改为 DeepSeek Function Calling（见 AGENT_TOOLS / runToolLoop），
+   不再使用关键词正则硬匹配。parseAskDate / parsePeriod 保留，作为工具参数的解析辅助。 */
+
+function seatClass(v){
+  if(v === '有'){ return 'have'; }
+  if(/^\d+$/.test(v)){ return parseInt(v, 10) <= 5 ? 'hot' : ''; }
+  if(v === '候补'){ return 'hot'; }
+  return 'none';
+}
+
+function renderTrainCode(d){
+  var rows = d.stops.map(function(s, i){
+    var end = (i === 0 || i === d.stops.length - 1);
+    return '<tr>'+
+      '<td class="tr-dur">'+esc(s.no)+'</td>'+
+      '<td class="'+(end ? 'tr-end' : '')+'">'+esc(s.name)+'</td>'+
+      '<td class="tr-time">'+(s.arrive === '----' ? '—' : esc(s.arrive))+'</td>'+
+      '<td class="tr-time">'+(s.start === '----' ? '—' : esc(s.start))+'</td>'+
+      '<td class="tr-dur">'+(s.stop === '----' ? '—' : esc(s.stop))+'</td>'+
+    '</tr>';
+  }).join('');
+  return '<div class="tr-title">'+esc(d.code)+' 次列车时刻表<span class="tr-badge">12306</span></div>'+
+    '<div class="tr-sub">'+esc(d.from)+' → '+esc(d.to)+' · '+esc(d.date)+' · 全程 '+d.total+' 站</div>'+
+    '<div class="tr-scroll"><table class="tr-table"><thead><tr><th>站序</th><th>车站</th><th>到达</th><th>发车</th><th>停留</th></tr></thead><tbody>'+
+    rows+'</tbody></table></div>'+
+    '<div class="tr-note">数据来自 12306 实时时刻表，列车是否开行与具体时刻以车站公告为准。</div>';
+}
+
+function renderTickets(d){
+  var MAX = 30;
+  var rows = d.trains.slice(0, MAX).map(function(t){
+    var tags = t.seats.map(function(s){
+      return '<span class="seat-tag '+seatClass(s.value)+'"><b>'+esc(s.label)+'</b>'+esc(s.value)+'</span>';
+    }).join('');
+    return '<tr>'+
+      '<td class="tr-code">'+esc(t.code)+'</td>'+
+      '<td class="tr-st">'+esc(t.fromStation)+'<br>↓<br>'+esc(t.toStation)+'</td>'+
+      '<td class="tr-time">'+esc(t.depart)+'<br><span class="tr-dur">'+esc(t.arrive)+'</span></td>'+
+      '<td class="tr-dur">'+esc(t.duration)+'</td>'+
+      '<td><div class="seat-tags">'+tags+'</div></td>'+
+    '</tr>';
+  }).join('');
+  var more = d.trains.length > MAX ? '<div class="tr-more">仅展示前 '+MAX+' 趟，共 '+d.trains.length+' 趟；可告诉我时间段（如上午）或车型（高铁 / 普速）帮你筛选。</div>' : '';
+  return '<div class="tr-title">'+esc(d.fromQuery)+' → '+esc(d.toQuery)+' 火车余票<span class="tr-badge">12306</span></div>'+
+    '<div class="tr-sub">'+esc(d.date)+(d.periodLabel ? '「'+esc(d.periodLabel)+'」' : '')+' · 共查到 <b style="color:var(--green-deep)">'+d.count+'</b> 趟列车，按发车时间排序；覆盖 '+d.fromStations.join('、')+' 与 '+d.toStations.join('、')+' 各站</div>'+
+    '<div class="tr-scroll"><table class="tr-table"><thead><tr><th>车次</th><th>区间</th><th>发/到</th><th>历时</th><th>余票</th></tr></thead><tbody>'+
+    rows+'</tbody></table></div>'+
+    more+
+    '<div class="tr-note">余票为 12306 实时数据：「有」表示票量充足，数字为剩余张数，「候补 / --」可在 12306 提交候补；购票请以 12306 官方为准。</div>';
+}
+
+function cpArrTag(day){
+  if(day > 1){ return '第' + (day + 1) + '天到达'; }
+  if(day === 1){ return '次日到达'; }
+  return '';
+}
+function cpLegBlock(l, date){
+  var depTag = (l.date && l.date !== date) ? '<span style="opacity:.75">'+esc(l.date.slice(5))+' 发车</span>' : '';
+  var arrTag = cpArrTag(l.arrDay);
+  return '<div class="cp-leg"><div class="cp-leg-row"><span class="cp-code">'+esc(l.code)+'</span>'+
+    '<span class="cp-stations">'+esc(l.fromStation)+' → '+esc(l.toStation)+'</span>'+
+    '<span class="cp-time">'+esc(l.depart)+' 开 · '+esc(l.arrive)+' 到'+(arrTag ? ' ' + arrTag : '')+'<br>历时 '+esc(l.duration)+' '+depTag+'</span></div>'+
+    '<div class="cp-seatline">'+esc(l.seatLabel)+'（余票 '+esc(l.avail)+'）<b>¥'+l.price+'</b></div></div>';
+}
+function cpHeroDirect(b){
+  var chips = (b.options || []).map(function(o){
+    return '<span class="cp-opt">'+esc(o.label)+' '+(o.avail === '有' ? '有票' : ('余' + esc(o.avail)))+' <b>¥'+o.price+'</b></span>';
+  }).join('');
+  return '<div class="cp-hero-top"><span class="cp-tag">最便宜 · 直达</span><span>无需换乘，一趟直达</span></div>'+
+    '<div class="cp-price"><span class="rmb">¥</span><span class="num">'+b.best.price+'</span>'+
+    '<span class="pinfo">'+esc(b.best.label)+' · 余票 '+esc(b.best.avail)+'</span></div>'+
+    '<div class="cp-leg"><div class="cp-leg-row"><span class="cp-code">'+esc(b.code)+'</span>'+
+    '<span class="cp-stations">'+esc(b.fromStation)+' → '+esc(b.toStation)+'</span>'+
+    '<span class="cp-time">'+esc(b.depart)+' 开 · '+esc(b.arrive)+' 到<br>历时 '+esc(b.duration)+'</span></div></div>'+
+    '<div class="cp-opts">'+chips+'</div>';
+}
+function cpHeroTransfer(date, p){
+  var cross = p.crossCity ? ('同城不同站换乘，预留 '+p.waitMin+' 分钟') : ('同站换乘，等待 '+p.waitMin+' 分钟');
+  return '<div class="cp-hero-top"><span class="cp-tag">最便宜 · 中转 1 次</span><span>经 '+esc(p.hubCity)+' 换乘</span></div>'+
+    '<div class="cp-price"><span class="rmb">¥</span><span class="num">'+p.total+'</span>'+
+    '<span class="pinfo">两段票价合计</span></div>'+
+    cpLegBlock(p.legs[0], date)+
+    '<div class="cp-transfer">经 '+esc(p.hubCity)+' · '+cross+'</div>'+
+    cpLegBlock(p.legs[1], date);
+}
+function cpTransferCard(date, p){
+  var legs = p.legs.map(function(l){
+    var at = cpArrTag(l.arrDay);
+    return '<span class="cp-minileg"><b>'+esc(l.code)+'</b> '+esc(l.fromStation)+'→'+esc(l.toStation)+
+      ' '+esc(l.depart)+'-'+esc(l.arrive)+(at ? ' ' + at : '')+'<br>'+esc(l.seatLabel)+' ¥'+l.price+'</span>';
+  }).join('');
+  return '<div class="cp-tcard"><div class="cp-tc-top"><span class="cp-tc-code">'+esc(p.legs[0].code)+' + '+esc(p.legs[1].code)+'</span>'+
+    '<span class="cp-tc-route">经 '+esc(p.hubCity)+' 换乘</span><span class="cp-tc-price">合计 ¥'+p.total+'</span></div>'+
+    '<div class="cp-tc-sub"><span class="cp-wait">'+(p.crossCity ? '同城换乘' : '同站换乘')+' · 等待 '+p.waitMin+' 分钟</span></div>'+
+    '<div class="cp-minilegs">'+legs+'</div></div>';
+}
+function renderCheapest(d){
+  var b = d.best, html = '';
+  html += '<div class="tr-title">'+esc(d.fromQuery)+' → '+esc(d.toQuery)+' 最便宜方案<span class="tr-badge">12306 实时票价</span></div>';
+  html += '<div class="tr-sub">'+esc(d.date)+' · 直达可购 '+d.directCount+' 趟 · 中转方案 '+d.transferCount+' 个；中转票价为两段最低可售席别合计</div>';
+  html += '<div class="cp-hero">'+(b.kind === 'direct' ? cpHeroDirect(b) : cpHeroTransfer(d.date, b))+'</div>';
+  if(d.direct && d.direct.top && d.direct.top.length){
+    html += '<div class="cp-sec">直达备选 <span class="cnt">按票价从低到高</span></div>';
+    html += '<div class="tr-scroll"><table class="tr-table"><thead><tr><th>车次</th><th>区间</th><th>发/到</th><th>历时</th><th>最低席别</th><th>票价</th></tr></thead><tbody>';
+    html += d.direct.top.map(function(t){
+      return '<tr><td class="tr-code">'+esc(t.code)+'</td><td class="tr-st">'+esc(t.fromStation)+'<br>↓<br>'+esc(t.toStation)+'</td>'+
+        '<td class="tr-time">'+esc(t.depart)+'<br><span class="tr-dur">'+esc(t.arrive)+'</span></td>'+
+        '<td class="tr-dur">'+esc(t.duration)+'</td><td>'+esc(t.seatLabel)+' '+esc(t.avail)+'</td>'+
+        '<td class="tr-time" style="color:var(--orange-deep)">¥'+t.price+'</td></tr>';
+    }).join('');
+    html += '</tbody></table></div>';
+  }
+  var rest = b.kind === 'transfer' ? d.transfers.slice(1) : d.transfers;
+  if(rest && rest.length){
+    html += '<div class="cp-sec">中转备选 <span class="cnt">一次换乘 · 已预留换乘时间</span></div>';
+    html += rest.map(function(p){ return cpTransferCard(d.date, p); }).join('');
+  }
+  html += '<div class="tr-note">票价与余票来自 12306 实时查询；中转支持同站 / 同城换乘一次（同站至少预留 25 分钟、同城至少 90 分钟）。购票请在 12306 使用「联程 / 中转」分别购买两段车票，车次、站台与票价以 12306 为准。</div>';
+  return html;
+}
+
+/* ================= Agent 工具层：给 DeepSeek 用的 Function Calling ================= */
+function proxyDownHtml(){
+  return '<p class="tr-err">连不上本地助手（已尝试端口 8899 / 8901 / 8902 / 8903）。<br><br>请打开 yanzi-outdoor-agent 文件夹，<b>双击「start-proxy.bat」</b>启动数据代理，再重新提问。<br>若窗口一闪而过，说明端口被占用了，脚本会自动换到 8901 并提示新地址。</p>';
+}
+function normDateArg(v){
+  if(!v){ return null; }
+  var s = String(v).trim();
+  var m;
+  if((m = s.match(/(\d{4})[-年\/.](\d{1,2})[-月\/.](\d{1,2})/))){
+    return fixYear(m[1] + '-' + pad2(+m[2]) + '-' + pad2(+m[3]));
+  }
+  if((m = s.match(/^(\d{1,2})[-月\/](\d{1,2})[日号]?$/))){
+    var now = new Date();
+    return fmtDate(new Date(now.getFullYear(), +m[1] - 1, +m[2]));
+  }
+  return fixYear(parseAskDate(s));
+}
+/* 模型有时会把年份猜错（如当前 2026 年却填 2025），做向前校正：
+   日期早于今天 2 天以上时，逐年+1 直到落在今天之后（最多 3 次）。 */
+function fixYear(iso){
+  if(!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)){ return iso; }
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var d = new Date(iso + 'T00:00:00');
+  if(isNaN(d.getTime())){ return iso; }
+  var guard = 0;
+  while(d < today && guard < 3){
+    d.setFullYear(d.getFullYear() + 1);
+    guard++;
+  }
+  return fmtDate(d);
+}
+function normStationArg(v){
+  if(!v){ return ''; }
+  return String(v)
+    .replace(/[\s　]/g, '')
+    .replace(/^(?:从|由|在|去|到|往|去往|出发地|目的地|出发站?|到达站?)[:：]?/, '')
+    .replace(/(?:站|市|区|县)$/, '')
+    .replace(/^(?:中国)?(?:省)?/, '')
+    .trim();
+}
+function periodToRange(v){
+  if(!v){ return null; }
+  return parsePeriod(String(v));
+}
+
+/* 工具清单：给模型看的 JSON Schema */
+var AGENT_TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'query_trains',
+      description: '查询中国铁路两个车站/城市之间某一天的车次、发车到达时间、历时与实时余票。用户问"有没有火车/高铁""几点发车""怎么坐车去某地""还有票吗"时必须调用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: '出发城市或车站名，例如 徐州 或 徐州东' },
+          to: { type: 'string', description: '到达城市或车站名，例如 重庆 或 重庆北' },
+          date: { type: 'string', description: '乘车日期，格式 YYYY-MM-DD。用户没说日期时默认今天；用户说"9月25号"这类不带年份的表达时，用今年的年份' },
+          period: { type: 'string', description: '可选，发车时段，仅可取：凌晨、上午、中午、下午、傍晚、晚上。用户没有明确说时段就不要传' },
+        },
+        required: ['from', 'to', 'date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_train_detail',
+      description: '查询某一趟具体列车（如 G2207、K15）的完整时刻表、沿途停靠站、到达与发车时间。用户点名某个车次号时调用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          code: { type: 'string', description: '车次号，字母+数字，例如 G2207' },
+          date: { type: 'string', description: '乘车日期，格式 YYYY-MM-DD，默认今天。用户没提日期就用今天' },
+        },
+        required: ['code'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_cheapest',
+      description: '查询两地之间最省钱的乘车方案，同时比较直达最低票价与经枢纽城市一次换乘的中转方案。用户说"最便宜""最省钱""最划算""最低票价"并给出两个地点时，直接调用，不要先反问日期——日期缺省就用今天。',
+      parameters: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: '出发城市或车站名' },
+          to: { type: 'string', description: '到达城市或车站名' },
+          date: { type: 'string', description: '乘车日期，格式 YYYY-MM-DD。用户没说日期时默认今天；用户说"9月25号"这类不带年份的表达时，用今年的年份' },
+        },
+        required: ['from', 'to', 'date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_weather',
+      description: '查询某地（城市、景区、山峰）的实时天气与未来 7 天预报。用户问天气、气温、下不下雨、适不适合出行、要不要带雨具时调用。',
+      parameters: {
+        type: 'object',
+        properties: {
+          location: { type: 'string', description: '地点名，只填城市名或景区主名，例如 徐州、济南、五台山。不要把山峰/山头等小地名带上（如"五台山北台顶"应填"五台山"）。用户问"我这里/附近/当前位置"的天气时，填 @nearby 表示用用户定位；用户没说地点时，若前文有明确地点就沿用，否则留空查默认城市' },
+          date: { type: 'string', description: '可选，关注的日期，可填 今天/明天/后天 或 YYYY-MM-DD' },
+        },
+        required: [],
+      },
+    },
+  },
+];
+
+/* 工具结果 → 交给模型阅读的紧凑文本（避免塞入巨量表格数据） */
+function toolResultText(name, payload){
+  if(!payload){ return '（无返回数据）'; }
+  if(payload.ok === false){ return '【查询失败】' + (payload.error || '未知错误'); }
+  if(name === 'query_trains'){
+    var head = payload.date + ' ' + payload.fromQuery + ' → ' + payload.toQuery + '，共 ' + payload.count + ' 趟列车';
+    if(payload.periodLabel){ head += '（时段：' + payload.periodLabel + '）'; }
+    var lines = (payload.trains || []).slice(0, 40).map(function(t){
+      var seats = (t.seats || []).filter(function(s){ return s.value && s.value !== '无'; }).map(function(s){ return s.label + s.value; }).join('/');
+      return t.code + ' ' + t.fromStation + '→' + t.toStation + ' ' + t.depart + '开 ' + t.arrive + '到 ' + t.duration + ' ' + (seats || '无票信息');
+    });
+    if((payload.trains || []).length > 40){ lines.push('…（余下 ' + (payload.trains.length - 40) + ' 趟略）'); }
+    return head + '\n' + lines.join('\n');
+  }
+  if(name === 'query_train_detail'){
+    var stops = (payload.stops || []).map(function(s){ return s.no + '.' + s.name + ' 到' + s.arrive + ' 发' + s.start; });
+    return payload.code + ' 次 ' + payload.from + ' → ' + payload.to + '（' + payload.date + '），全程 ' + payload.total + ' 站\n' + stops.join('\n');
+  }
+  if(name === 'query_cheapest'){
+    var b = payload.best || {};
+    var t = payload.fromQuery + ' → ' + payload.toQuery + '（' + payload.date + '）最便宜方案：';
+    if(b.kind === 'direct'){
+      t += '直达 ' + b.code + '，' + (b.best && b.best.label) + ' ¥' + (b.best && b.best.price) + '，' + b.depart + '开 ' + b.arrive + '到，历时 ' + b.duration;
+    }else{
+      t += '中转 1 次（经 ' + b.hubCity + '），两段合计 ¥' + b.total + '；' +
+        b.legs.map(function(l){ return l.code + ' ' + l.fromStation + '→' + l.toStation + ' ' + l.depart + '开 ' + l.seatLabel + ' ¥' + l.price; }).join('；');
+    }
+    var alts = (payload.direct && payload.direct.top ? payload.direct.top : []).slice(0, 5).map(function(x){ return x.code + ' ' + x.seatLabel + ' ¥' + x.price; });
+    if(alts.length){ t += '\n直达备选（按票价）：' + alts.join('、'); }
+    return t;
+  }
+  if(name === 'query_weather'){
+    var nm = (payload.location && payload.location.name) || payload.query || '徐州';
+    var adm = (payload.location && payload.location.adm) || '';
+    var out = nm + adm + ' 天气（更新 ' + (payload.updateTime || '') + '）\n实况：' + payload.now.text + '，' + payload.now.temp + '°C（体感' + payload.now.feelsLike + '°C），' + payload.now.windDir + payload.now.windScale + '级，湿度' + payload.now.humidity + '%，降水' + payload.now.precip + 'mm\n未来7天：';
+    out += (payload.daily || []).map(function(d){ return d.fxDate + ' ' + d.textDay + '转' + d.textNight + ' ' + d.tempMin + '~' + d.tempMax + '°C ' + d.windDirDay + d.windScaleDay + '级 降水' + d.precip + 'mm'; }).join('\n');
+    return out;
+  }
+  return JSON.stringify(payload).slice(0, 2000);
+}
+
+/* 旧版代理（缺路由）会返回 404 "not found"——统一翻译成明确的重启指引，
+   避免模型把它误解成"预售期没到"之类的错误归因。 */
+function fixProxyError(payload){
+  if(payload && payload.ok === false && /not found/i.test(String(payload.error || ''))){
+    return { ok:false, error:'本地代理版本过旧，缺少数据接口。请关闭所有旧的代理窗口（黑色命令行），重新双击 start-proxy.bat，然后再问一次。' };
+  }
+  return payload;
+}
+
+/* 工具执行器：返回 { payload, cardHtml, summary, badge } */
+async function runAgentTool(name, args){
+  args = args || {};
+  if(name === 'query_trains'){
+    var from = normStationArg(args.from), to = normStationArg(args.to);
+    if(!from || !to){ return { payload: { ok:false, error:'出发地或目的地为空，请告诉我从哪到哪' } }; }
+    var date = normDateArg(args.date) || fmtDate(new Date());
+    var period = periodToRange(args.period);
+    var r = await fetch(PROXY + '/tickets?from=' + encodeURIComponent(from) + '&to=' + encodeURIComponent(to) + '&date=' + date);
+    var d = fixProxyError(await r.json());
+    if(!d.ok){ return { payload: d }; }
+    if(period && d.trains && d.trains.length){
+      var inP = d.trains.filter(function(t){
+        var p = (t.depart || '').split(':');
+        if(p.length < 2){ return false; }
+        var mins = (+p[0]) * 60 + (+p[1]);
+        return mins >= period.from && mins < period.to;
+      });
+      if(inP.length > 0){
+        d = Object.assign({}, d, { trains: inP, count: inP.length, periodLabel: period.label });
+      }else{
+        d.periodLabel = period.label + '时段无车，已显示全天车次';
+      }
+    }
+    if(!d.trains || !d.trains.length){
+      return { payload: { ok:false, error: date + ' ' + from + '→' + to + ' 没有查到开行的列车，可能是日期超出预售期或站名不准确' } };
+    }
+    var ch = renderTickets(d);
+    return {
+      payload: d,
+      cardHtml: ch,
+      badge: '12306 实时数据',
+      summary: date + (d.periodLabel ? '（' + d.periodLabel + '）' : '') + ' ' + d.fromQuery + '→' + d.toQuery + ' 共 ' + d.count + ' 趟',
+    };
+  }
+  if(name === 'query_train_detail'){
+    var code = String(args.code || '').trim().toUpperCase();
+    if(!/^[GDCZTKLYSP]\d{1,5}$/.test(code)){ return { payload: { ok:false, error:'车次号「' + code + '」格式不对' } }; }
+    var dt = normDateArg(args.date) || fmtDate(new Date());
+    var d2 = fixProxyError(await (await fetch(PROXY + '/train?code=' + encodeURIComponent(code) + '&date=' + dt)).json());
+    if(!d2.ok){ return { payload: d2 }; }
+    return {
+      payload: d2,
+      cardHtml: renderTrainCode(d2),
+      badge: '12306 实时数据',
+      summary: code + ' 次 ' + d2.from + '→' + d2.to + ' 共 ' + d2.total + ' 站',
+    };
+  }
+  if(name === 'query_cheapest'){
+    var f3 = normStationArg(args.from), t3 = normStationArg(args.to);
+    if(!f3 || !t3){ return { payload: { ok:false, error:'出发地或目的地为空' } }; }
+    var d3 = normDateArg(args.date) || fmtDate(new Date());
+    var q3 = f3 + '到' + t3;
+    var res3 = fixProxyError(await (await fetch(PROXY + '/cheapest?q=' + encodeURIComponent(q3) + '&date=' + d3)).json());
+    if(!res3.ok){ return { payload: res3 }; }
+    var b3 = res3.best || {};
+    return {
+      payload: res3,
+      cardHtml: renderCheapest(res3),
+      badge: '12306 实时数据',
+      summary: d3 + ' ' + res3.fromQuery + '→' + res3.toQuery + ' 最便宜：' + (b3.kind === 'direct' ? ('直达 ' + b3.code + ' ¥' + (b3.best && b3.best.price)) : ('中转经' + b3.hubCity + ' ¥' + b3.total)),
+    };
+  }
+  if(name === 'query_weather'){
+    var loc = (args.location || '').trim();
+    var dateHint = args.date ? String(args.date) : '';
+    var wk = null, usedLoc = loc;
+    /* 定位查询：location 填 @nearby 时用浏览器定位（经度,纬度） */
+    if(loc === '@nearby'){
+      try{
+        var pos = await getUserLocation();
+        usedLoc = pos.lon + ',' + pos.lat;
+        wk = await fetchWeather(usedLoc);
+      }catch(_g){ wk = null; }
+      if(!wk){ return { payload: { ok:false, error:'定位失败或当前坐标附近无天气数据，请手动输入城市或景区名' } }; }
+    } else {
+      /* 和风 GeoAPI 对"五台山北台顶"这类带山顶后缀的长名匹配不到：
+         逐级截断重试（去掉末尾 1-3 个描述性字），命中即用。 */
+      var candidates = [];
+      if(loc){
+        candidates.push(loc);
+        for(var cut = 1; cut <= 3 && loc.length - cut >= 2; cut++){ candidates.push(loc.slice(0, loc.length - cut)); }
+      } else { candidates.push(''); }
+      for(var ci = 0; ci < candidates.length; ci++){
+        try{
+          wk = await fetchWeather(candidates[ci] || null);
+          usedLoc = candidates[ci];
+          break;
+        }catch(_we){ wk = null; }
+      }
+      if(!wk){
+        return { payload: { ok:false, error:'没查到「' + (loc || '徐州') + '」的天气，请换一个更常见的城市或景区名试试' } };
+      }
+    }
+    var wname = (wk.location && wk.location.name) || loc || '徐州';
+    return {
+      payload: wk,
+      cardHtml: weatherCardHtml(wk),
+      badge: '和风天气 · ' + wname,
+      summary: wname + ' 实况 ' + wk.now.text + ' ' + wk.now.temp + '°C' + (dateHint ? '（关注：' + dateHint + '）' : ''),
+      contextText: weatherContextText(wk) + (dateHint ? '\n用户关注的日期是「' + dateHint + '」，请重点解读该日预报。' : '') +
+        (loc && usedLoc && usedLoc !== loc ? '\n（注：用户说的是「' + loc + '」，实际查到的是最接近的「' + usedLoc + '」，回答时请说明这一点，并提醒山区/山顶气温通常明显低于城区预报。）' : ''),
+    };
+  }
+  return { payload: { ok:false, error:'未知工具 ' + name } };
+}
+
+/* Agent 循环：模型决策 → 执行工具 → 回传结果 → 直到模型给出最终回答 */
+async function runToolLoop(modelId, context, onToolEvent, signal){
+  var msgs = context.slice();
+  var cards = [];
+  var MAX_STEPS = 4;
+  for(var step = 0; step < MAX_STEPS; step++){
+    var res = await dsRequestOnce(modelId, msgs, AGENT_TOOLS, signal, 0.3);
+    var choice = res.choices && res.choices[0];
+    var msg = choice && choice.message;
+    if(!msg){ break; }
+    var calls = msg.tool_calls || [];
+    if(!calls.length){
+      /* 模型没调用工具：直接给出答案 */
+      return { done: true, message: msg, messages: msgs, cards: cards, steps: step };
+    }
+    msgs.push({ role:'assistant', content: msg.content || '', tool_calls: calls });
+    for(var i = 0; i < calls.length; i++){
+      var call = calls[i];
+      var fnName = call.function && call.function.name;
+      var fnArgs = {};
+      try{ fnArgs = JSON.parse((call.function && call.function.arguments) || '{}'); }catch(_pe){ fnArgs = {}; }
+      if(onToolEvent){ onToolEvent('start', fnName, fnArgs); }
+      var out;
+      try{
+        out = await runAgentTool(fnName, fnArgs);
+      }catch(e){
+        var isDown = /Failed to fetch|NetworkError|Load failed|ERR_CONNECTION/i.test(String((e && e.message) || e));
+        out = { payload: { ok:false, error: isDown ? '__PROXY_DOWN__' : ('本地助手调用失败：' + ((e && e.message) || e)) } };
+      }
+      if(onToolEvent){ onToolEvent('end', fnName, fnArgs, out); }
+      if(out.cardHtml){ cards.push(out.cardHtml); }
+      var toolText = toolResultText(fnName, out.payload);
+      if(out.contextText){ toolText += out.contextText; }
+      msgs.push({ role:'tool', tool_call_id: call.id, content: toolText });
+    }
+  }
+  /* 超过最大步数：追加一条纯总结请求（不带 tools，强制出文本） */
+  var summaryMsgs = msgs.concat([{ role:'user', content:'请基于以上已获取的数据，用中文简洁总结并给出建议，不要再调用工具。' }]);
+  var last = await dsRequestOnce(modelId, summaryMsgs, null, signal, 0.7);
+  var lastMsg = (last.choices && last.choices[0] && last.choices[0].message) || { content:'' };
+  return { done: true, message: lastMsg, messages: msgs, cards: cards, steps: MAX_STEPS };
+}
+
+
+/* ================= 发送与流式对话 ================= */
+function setGenerating(on){
+  generating = on;
+  askSend.style.display = on ? 'none' : 'flex';
+  askStop.style.display = on ? 'flex' : 'none';
+  askInput.disabled = on;
+  updateSendState();
+}
+function updateSendState(){
+  askSend.disabled = generating || !askInput.value.trim() || !currentModelId;
+}
+
+function explainError(err){
+  var code = (err && err.error && err.error.code) || '';
+  var rid = err && err.requestId ? '（ requestId: ' + err.requestId + ' ）' : '';
+  if(code === 'http_401'){ return { msg:'DeepSeek API Key 无效或已过期，请到官方平台检查后更新', retryable:false }; }
+  if(code === 'http_402'){ return { msg:'DeepSeek 账户余额不足，请到官方平台充值', retryable:false }; }
+  if(code === 'http_429'){ return { msg:'DeepSeek 官方接口限流，请稍候几秒再试', retryable:true }; }
+  if(code.indexOf('http_5') === 0){ return { msg:'DeepSeek 官方服务暂时不可用，请稍后重试', retryable:true }; }
+  if(code.indexOf('http_') === 0){ return { msg:'DeepSeek 官方接口异常（' + code + '）', retryable:true }; }
+  if(code.indexOf('request_') === 0){ return { msg:'请求参数有误，请换个说法再试' + rid, retryable:false }; }
+  if(code.indexOf('auth_') === 0){ return { msg:'云服务凭证校验失败，请通过应用的正式访问域名打开本页面' + rid, retryable:false }; }
+  if(code === 'quota_rate_limited'){ return { msg:'发送太频繁，被限流了，请稍等几秒再试' + rid, retryable:true }; }
+  if(code.indexOf('quota_') === 0){ return { msg:'对话配额已用尽，请联系管理员处理' + rid, retryable:false }; }
+  if(code.indexOf('gateway_') === 0 || code.indexOf('model_') === 0){ return { msg:'模型服务暂时不可用，可点击重试，或在右上角切换其他模型' + rid, retryable:true }; }
+  if(err && err.name === 'AbortError'){ return { msg:'已停止生成', retryable:false }; }
+  return { msg:'网络异常或浏览器跨域受限，请检查网络后重试' + rid, retryable:true };
+}
+
+async function send(text, isRetry){
+  text = (text || '').trim();
+  if(generating || !text || !currentModelId){ return; }
+  var now = Date.now();
+  if(now - lastSendTime < 1000){ toast('操作太快啦，歇一秒再发～'); return; }
+  lastSendTime = now;
+
+  if(currentView !== 'chat'){ renderChatView(); }
+  lastFailedPrompt = isRetry ? lastFailedPrompt : text;
+  appendUserBubble(text);
+  history.push({ role:'user', content:text });
+  askInput.value = '';
+  updateSendState();
+
+  setGenerating(true);
+  var bubble = appendAiBubble('', '<p class="ai-loading">小燕正在思考<span>.</span><span>.</span><span>.</span></p>');
+  var textEl = bubble.querySelector('.ai-text');
+
+  var context = [{ role:'system', content: SYSTEM_PROMPT + '\n\n# 今天是什么日子\n当前日期是 ' + fmtDate(new Date()) + '（' + ['周日','周一','周二','周三','周四','周五','周六'][new Date().getDay()] + '）。用户说"9月25号"这类不带年份的日期时，一律用今年的年份；换算"今天/明天/后天"时以这个日期为基准。' }];
+  context = context.concat(history.slice(-16, -1).map(function(m){ return { role: m.role, content: m.content }; }));
+  context.push({ role:'user', content: text });
+
+  abortController = new AbortController();
+  var isOfficial = currentModelId.indexOf('official:') === 0;
+
+  function isModelDown(e){
+    var c = (e && e.error && e.error.code) || '';
+    return c.indexOf('model_') === 0 || c.indexOf('gateway_') === 0;
+  }
+  var autoModel = models.find(function(m){ return m.id === 'auto' && m.disabled !== true; });
+
+  /* ---------- 官方直连：Agent 工具调用 → 流式总结 ---------- */
+  var toolCards = [];
+  var toolSummary = '';
+  var toolBadge = '';
+  var toolError = '';
+  var usedTools = [];
+  var officialModel = currentModelId.slice('official:'.length);
+
+  async function attemptOfficial(){
+    textEl.innerHTML = '<p class="ai-loading">小燕正在理解你的问题<span>.</span><span>.</span><span>.</span></p>';
+    var plainBuf = '';
+    var loop = null;
+    await resolveProxy();
+    try{
+      loop = await runToolLoop(officialModel, context, function(phase, name, args, out){
+        if(phase === 'start'){
+          var label = { query_trains:'正在查询 12306 车次与余票', query_train_detail:'正在查询 12306 列车时刻', query_cheapest:'正在比价 12306 实时票价', query_weather:'正在查询和风天气实时数据' }[name] || ('正在调用 ' + name);
+          textEl.innerHTML = '<p class="ai-loading">' + esc(label) + '<span>.</span><span>.</span><span>.</span></p>';
+        }else if(phase === 'end'){
+          usedTools.push(name);
+          if(out && out.badge){ toolBadge = out.badge; }
+          if(out && out.summary){ toolSummary = toolSummary ? (toolSummary + '；' + out.summary) : out.summary; }
+          if(out && out.cardHtml){ toolCards.push(out.cardHtml); }
+          if(out && out.payload && out.payload.ok === false){
+            var em = out.payload.error || '';
+            toolError = (em === '__PROXY_DOWN__') ? proxyDownHtml() : ('<p class="tr-err">' + esc(em) + '</p>');
+          }
+        }
+      }, abortController.signal);
+    }catch(err){
+      if(err && err.name === 'AbortError'){ throw err; }
+      /* 工具链路整体不可用（模型不支持 tools / Key 异常等）→ 退回普通流式对话 */
+      var retryCtx = context.slice();
+      if(toolError || true){
+        retryCtx.push({ role:'user', content:'（系统提示：本地实时数据工具暂时不可用，请不要编造实时车次或天气数据，可用你已有的户外知识回答，并提醒我启动本地数据代理以获取实时信息。）' });
+      }
+      return await callDeepSeekOfficial(officialModel, retryCtx, function(delta, isReasoning){
+        if(isReasoning && !plainBuf){ textEl.innerHTML = '<span class="thinking">💭 小燕正在思考…</span>'; }
+        if(delta){ plainBuf += delta; textEl.innerHTML = renderAnswer(plainBuf) + toolCards.join(''); scrollBottom(); }
+      }, abortController.signal);
+    }
+
+    /* 已取到数据卡片：先铺卡片，再把模型给出的文字流式接上 */
+    if(toolCards.length){
+      textEl.innerHTML = toolCards.join('');
+      scrollBottom();
+    }
+    var finalText = (loop && loop.message && loop.message.content) || '';
+    var summaryCtx = (loop && loop.messages) ? loop.messages : context;
+    if(finalText){
+      /* 决策轮里模型已带出文字：直接展示，剩下的交给流式补充 */
+      plainBuf = finalText;
+      textEl.innerHTML = renderAnswer(plainBuf) + toolCards.join('');
+      scrollBottom();
+    }
+    if(loop && loop.steps === 0){
+      /* 模型第一轮就选择了直接回答（没调工具）：视为普通对话已完成 */
+      return plainBuf;
+    }
+    /* 有工具数据 → 让模型基于真实数据流式总结 */
+    if(toolCards.length || usedTools.length){
+      var tmp = '';
+      var tail = await callDeepSeekOfficial(officialModel, summaryCtx.concat([{ role:'user', content:'请基于上面工具返回的真实数据，用中文简洁总结关键信息并给出出行建议（不要罗列表格中已有的全部内容，不要编造数据）。' }]), function(delta, isReasoning){
+        if(delta){ tmp += delta; textEl.innerHTML = (plainBuf ? renderAnswer(plainBuf) : '') + toolCards.join('') + renderAnswer(tmp); scrollBottom(); }
+      }, abortController.signal);
+      if(!tmp && !plainBuf){ plainBuf = toolSummary; textEl.innerHTML = toolCards.join('') + '<p>' + esc(plainBuf) + '</p>'; }
+      return (plainBuf ? plainBuf + '\n' : '') + tmp;
+    }
+    return plainBuf;
+  }
+
+  async function attemptCloud(modelId){
+    var content = '';
+    var stream = cloud.llm.chat.completions.create({
+      model: modelId,
+      messages: context,
+      stream: true,
+      conversationId: conversationId,
+      temperature: 0.8,
+      stream_options: { include_usage: true },
+      signal: abortController.signal,
+    });
+    for await (var chunk of stream){
+      var delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
+      if(delta && delta.content){
+        content += delta.content;
+        textEl.innerHTML = renderAnswer(content) + (toolCards.length ? toolCards.join('') : '');
+        scrollBottom();
+      }
+    }
+    return content;
+  }
+
+  var content = '';
+  var streamError = null;
+  try{
+    content = isOfficial ? await attemptOfficial() : await attemptCloud(currentModelId);
+  }catch(err1){
+    if(!isOfficial && isModelDown(err1) && currentModelId !== 'auto' && autoModel){
+      toast('所选模型暂时不可用，已自动切换 Auto 为你回复');
+      try{ content = await attemptCloud(autoModel.id); }
+      catch(err2){ streamError = err2; }
+    }else{
+      streamError = err1;
+    }
+  }
+
+  abortController = null;
+  setGenerating(false);
+
+  if(streamError){
+    if(toolCards.length){
+      /* 已拿到真实数据但总结失败：保留卡片，不让整轮白费 */
+      textEl.innerHTML = toolCards.join('') + '<p class="tr-err">数据已取到，但生成文字说明时出错：' + esc((streamError && streamError.message) || '未知错误') + '</p>';
+      history.push({ role:'assistant', content: toolSummary, cardHtml: toolCards.join(''), badge: toolBadge });
+      saveCurrentConv();
+      scrollBottom();
+      return;
+    }
+    bubble.remove();
+    history.pop();
+    var info = explainError(streamError);
+    var errBubble = appendAiBubble('', '<p class="tr-err">⚠️ ' + esc(info.msg) + '</p>' + (info.retryable ? '<div class="err-actions"><button class="btn-retry">重新生成</button></div>' : ''));
+    var rb = errBubble.querySelector('.btn-retry');
+    if(rb){ rb.onclick = function(){ errBubble.remove(); send(lastFailedPrompt, true); }; }
+    return;
+  }
+  if(content || toolCards.length){
+    history.push({ role:'assistant', content: content || toolSummary, cardHtml: toolCards.length ? toolCards.join('') : null, badge: toolBadge || '' });
+    saveCurrentConv();
+  }else{
+    textEl.innerHTML = '<p class="tr-err">（小燕这次没有返回内容，请重试）</p>';
+  }
+  scrollBottom();
+}
+
+/* ================= 资料库视图 ================= */
+function renderCatalog(){
+  setView('catalog');
+  moveComposer(false);
+  composer.style.display = 'none';
+  viewRoot.innerHTML =
+    '<div class="catalog-head">'+
+      '<button class="back" id="catBack">'+ICONS.back+'</button>'+
+      '<h2>户外知识资料库</h2>'+
+    '</div>'+
+    '<p class="catalog-sub">覆盖天气、车票、装备与安全的实用知识，共 '+KB.length+' 个板块</p>'+
+    '<div class="catalog-grid">'+
+      KB.map(function(k){
+        return '<button class="cat-card" data-id="'+k.id+'">'+
+          '<div class="cat-top">'+
+            '<div class="cat-ic">'+ICONS[k.icon]+'</div>'+
+            '<div><div class="cat-name">'+esc(k.cat)+'</div><div class="cat-desc">'+esc(k.brief)+'</div></div>'+
+          '</div>'+
+          '<div class="cat-sec">'+ICONS.docs+k.sections.length+' 个章节<span class="cat-go">查看详情'+ICONS.arrow+'</span></div>'+
+        '</button>';
+      }).join('')+
+    '</div>';
+  $('catBack').onclick = function(){ history.length ? renderChatRestore() : renderWelcome(); };
+  viewRoot.querySelectorAll('.cat-card').forEach(function(card){
+    card.onclick = function(){ renderDetail(card.getAttribute('data-id')); };
+  });
+}
+function renderChatRestore(){
+  renderChatView();
+  history.forEach(function(m){
+    if(m.role === 'user'){ appendUserBubble(m.content); }
+    else { appendAiBubble(m.content, m.cardHtml || null, m.badge || ''); }
+  });
+  scrollBottom();
+}
+
+function blockHtml(b){
+  if(b.type === 'para'){ return '<p class="kb-para">'+esc(b.text)+'</p>'; }
+  if(b.type === 'list'){ return '<ul class="kb-list">'+b.items.map(function(i){ return '<li>'+esc(i)+'</li>'; }).join('')+'</ul>'; }
+  if(b.type === 'steps'){ return '<ol class="kb-steps">'+b.items.map(function(i){ return '<li>'+esc(i)+'</li>'; }).join('')+'</ol>'; }
+  if(b.type === 'table'){
+    return '<div style="overflow-x:auto"><table class="kb-table"><thead><tr>'+b.head.map(function(h){ return '<th>'+esc(h)+'</th>'; }).join('')+'</tr></thead><tbody>'+
+      b.rows.map(function(r){ return '<tr>'+r.map(function(c){ return '<td>'+esc(c)+'</td>'; }).join('')+'</tr>'; }).join('')+'</tbody></table></div>';
+  }
+  if(b.type === 'warn'){ return '<div class="kb-warn">'+b.items.map(function(i){ return '<b>⚠️</b> '+esc(i); }).join('<br>')+'</div>'; }
+  return '';
+}
+
+function renderDetail(id){
+  var k = KB.find(function(x){ return x.id === id; });
+  if(!k){ return; }
+  setView('detail');
+  moveComposer(false);
+  composer.style.display = 'none';
+  var idx = KB.indexOf(k);
+  var prev = KB[idx - 1], next = KB[idx + 1];
+  viewRoot.innerHTML =
+    '<div class="detail-head">'+
+      '<button class="back" id="detBack">'+ICONS.back+'</button>'+
+      '<div class="detail-ic">'+ICONS[k.icon]+'</div>'+
+      '<div><div class="detail-title">'+esc(k.cat)+'</div><div class="detail-brief">'+esc(k.brief)+'</div></div>'+
+    '</div>'+
+    '<div class="detail-meta">'+ICONS.clock+'资料库 · 持续更新</div>'+
+    '<div id="liveWeatherSlot"></div>'+
+    k.sections.map(function(s, i){
+      return '<div class="kb-section">'+
+        '<div class="kb-h3"><span class="no">'+(i + 1)+'</span>'+esc(s.title)+'</div>'+
+        s.blocks.map(blockHtml).join('')+
+      '</div>';
+    }).join('')+
+    '<div class="detail-nav">'+
+      (prev ? '<button data-id="'+prev.id+'">'+ICONS.back+'<div><span class="dir">上一篇</span><span class="name">'+esc(prev.cat)+'</span></div></button>' : '<span></span>')+
+      (next ? '<button class="next" data-id="'+next.id+'"><div><span class="dir">下一篇</span><span class="name">'+esc(next.cat)+'</span></div>'+ICONS.arrow+'</button>' : '<span></span>')+
+    '</div>';
+  $('detBack').onclick = renderCatalog;
+  viewRoot.querySelectorAll('.detail-nav button').forEach(function(b){
+    b.onclick = function(){ renderDetail(b.getAttribute('data-id')); };
+  });
+
+  /* 天气板块：实时数据自动更新 */
+  if(k.id === 'weather'){
+    var slot = $('liveWeatherSlot');
+    slot.innerHTML = '<div class="kb-section"><div class="kb-h3"><span class="no">实时</span>徐州实时天气 · 加载中…</div><p class="kb-para" style="color:var(--muted)">正在连接和风天气接口<span class="ai-loading"><span>.</span><span>.</span><span>.</span></span></p></div>';
+    fetchWeather().then(function(wj){
+      slot.innerHTML =
+        '<div class="kb-section">'+
+          '<div class="kb-h3"><span class="no">实时</span>徐州实时天气 · 自动更新</div>'+
+          '<p class="kb-para">实况：<b>'+esc(wj.now.text)+'</b>，'+esc(wj.now.temp)+'°C（体感 '+esc(wj.now.feelsLike)+'°C），'+esc(wj.now.windDir)+esc(wj.now.windScale)+'级，湿度 '+esc(wj.now.humidity)+'%，降水 '+esc(wj.now.precip)+'mm</p>'+
+          '<div style="margin-top:12px;overflow-x:auto"><table class="kb-table"><thead><tr><th>日期</th><th>天气</th><th>温度</th><th>降水概率</th></tr></thead><tbody>'+
+            wj.daily.map(function(d){
+              return '<tr><td>'+esc(d.fxDate)+'</td><td>'+esc(d.textDay)+'</td><td>'+esc(d.tempMin)+'~'+esc(d.tempMax)+'°C</td><td>'+esc(d.precip)+'%</td></tr>';
+            }).join('')+
+          '</tbody></table></div>'+
+          '<div class="kb-tip">数据来自和风天气实时接口，每天自动更新，无需手动维护。</div>'+
+        '</div>';
+    }).catch(function(){
+      slot.innerHTML = '<div class="kb-section"><div class="kb-h3"><span class="no">实时</span>徐州实时天气</div><p class="tr-err">连不上本地助手（127.0.0.1:8899）。请双击项目文件夹里的「start-proxy.bat」启动数据代理后刷新本页。</p></div>';
+    });
+  }
+}
+
+/* ================= 事件绑定 ================= */
+askInput.addEventListener('input', updateSendState);
+askInput.addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && !e.isComposing){
+    e.preventDefault();
+    send(askInput.value);
+  }
+});
+askSend.addEventListener('click', function(){ send(askInput.value); });
+askStop.addEventListener('click', function(){ if(abortController){ abortController.abort(); } });
+
+$('navNew').addEventListener('click', function(){
+  if(generating && abortController){ abortController.abort(); }
+  conversationId = genId();
+  localStorage.setItem('yanzi_conv_id', conversationId);
+  history = [];
+  lastFailedPrompt = null;
+  renderWelcome();
+  renderRecent($('searchInput').value.trim());
+});
+$('navCatalog').addEventListener('click', renderCatalog);
+$('btnAllData').addEventListener('click', renderCatalog);
+$('searchInput').addEventListener('input', function(){ renderRecent(this.value.trim()); });
+
+$('btnBurger').addEventListener('click', function(){
+  $('sidebar').classList.add('open');
+  $('mask').classList.add('show');
+});
+$('mask').addEventListener('click', function(){
+  $('sidebar').classList.remove('open');
+  $('mask').classList.remove('show');
+});
+
+/* ================= 购物车交互 ================= */
+$('cartFloat').addEventListener('click', openCart);
+$('cartClose').addEventListener('click', closeCart);
+$('cartMask').addEventListener('click', closeCart);
+$('cartExport').addEventListener('click', exportCart);
+$('cartClear').addEventListener('click', function(){
+  if(!cartItems.length){ return; }
+  cartItems = [];
+  saveCart(cartItems);
+  renderCart();
+  toast('清单已清空');
+});
+
+/* 全局点击委托：处理动态渲染的「加入清单」「导出行程卡」按钮 */
+document.addEventListener('click', function(e){
+  var add = e.target.closest('.shop-add');
+  if(add){
+    var name = add.getAttribute('data-name');
+    var price = add.getAttribute('data-price');
+    var kw = add.getAttribute('data-kw');
+    var ok = cartAdd({ name: name, price: price, kw: kw });
+    if(ok){ toast('已加入装备清单'); }
+    else { toast('这件已在清单里了'); }
+    return;
+  }
+  var exp = e.target.closest('.trip-export');
+  if(exp){
+    var raw = decodeURIComponent(exp.getAttribute('data-trip') || '');
+    if(raw){ exportTrip(raw); }
+    return;
+  }
+});
+
+/* ================= 启动 ================= */
+$('kbCount').textContent = KB.length;
+initCloud();
+loadModels();
+renderCart();
+var cleaned = cleanupConvs();
+if(convs.length){
+  loadConversation(convs[0].id);
+  toast(cleaned > 0
+    ? '已恢复上次对话（过期对话已自动清理，保留 3 天）'
+    : '已恢复上次对话 · 对话保留 3 天，到期自动清理');
+}else{
+  renderWelcome();
+}
+renderRecent('');
+})();
+</script>
+</body>
+</html>
