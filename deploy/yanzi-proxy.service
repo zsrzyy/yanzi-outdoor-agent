@@ -23,7 +23,10 @@ WorkingDirectory=/var/www/yanzi-outdoor-agent
 ExecStart=/usr/bin/python3 /var/www/yanzi-outdoor-agent/proxy.py
 Restart=always
 RestartSec=3
-# 只监听 127.0.0.1，外部只能通过 Nginx 反代访问
+# 默认只监听 127.0.0.1（系统级 Nginx 直连场景，最安全）。
+# 若你的 Nginx 跑在 Docker 容器里（1Panel 的 OpenResty），取消下面这行注释，
+# 让代理监听 0.0.0.0，容器经 172.17.0.1 访问；同时务必保证云防火墙不放行 8899！
+# Environment=YANZI_HOST=0.0.0.0
 Environment=YANZI_PORT=8899
 
 [Install]

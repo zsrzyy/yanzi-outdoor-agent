@@ -30,7 +30,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(BASE_DIR, "config.txt")
 API_URL = "https://api.deepseek.com/v1/responses"
 MODEL = "deepseek-chat"
-HOST = "127.0.0.1"
+# 监听地址：默认 127.0.0.1（本机 Nginx 直连）；若 Nginx 跑在 Docker 容器里
+# （如 1Panel 的 OpenResty），需设 YANZI_HOST=0.0.0.0 让容器经 172.17.0.1 访问，
+# 并确保云防火墙不放行 8899（否则代理直接暴露公网）。
+HOST = os.environ.get("YANZI_HOST", "127.0.0.1")
 PORT = int(os.environ.get("YANZI_PORT", "8899"))
 
 # 和风天气（Key 从 qweather_key.txt 读取，不入 git；Host 为账号专属 API 域名）
