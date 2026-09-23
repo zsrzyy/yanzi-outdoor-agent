@@ -66,7 +66,7 @@ fi
 
 # 7. Nginx
 echo ">>> [5/6] 配置 Nginx（80 端口）..."
-sed "s/101\.43\.127\.252/$SRV_IP/g" nginx-ip.conf > /etc/nginx/conf.d/yanzi-outdoor.conf
+sed "s/43\.108\.57\.165/$SRV_IP/g" nginx-ip.conf > /etc/nginx/conf.d/yanzi-outdoor.conf
 nginx -t
 systemctl reload nginx
 
