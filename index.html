@@ -784,13 +784,11 @@ var DEEPSEEK_CONFIG = {
   ],
 };
 
-/* DeepSeek 请求入口：同源部署用相对路径（Nginx 把 /deepseek 反代到 proxy.py），
-   file:// 直开用本地代理 PROXY，保证本地双击打开也能正常对话。 */
+/* DeepSeek 请求入口：直接跟随代理探测结果（与天气/车票同一数据源）。
+   同源命中（PROXY=''）→ 相对路径（Nginx 反代）；本地命中 → http://127.0.0.1:8899/...
+   对话前 attemptOfficial 已 await resolveProxy()，PROXY 必为已解析值。 */
 function dsUrl(){
-  if(location.protocol === 'file:'){
-    return PROXY + '/deepseek/chat/completions';
-  }
-  return '/deepseek/chat/completions';
+  return (PROXY || '') + '/deepseek/chat/completions';
 }
 
 var SYSTEM_PROMPT = `# 角色设定
