@@ -7,6 +7,7 @@
   3. /train  12306 车次时刻表（按车次号，如 G101）
   4. /tickets 站站火车/高铁余票（如 徐州 -> 济南，自动覆盖城市全部车站）
   5. /cheapest 最便宜出行方案（如 从成都到大理最便宜的方案，含票价与车次信息）
+  6. /deepseek/chat/completions  DeepSeek 透传（服务端注入 Key，支持流式 SSE）
 用法：保持窗口运行；静默启动用同目录「静默启动.vbs」。
 """
 import json
@@ -937,6 +938,22 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(out)
 
+    def _send_raw(self, raw, code=200, ctype="application/json"):
+        """透传上游原始响应（文本/字节），用于 /deepseek 转发，保持与 DeepSeek 一致的错误结构。"""
+        out = raw.encode("utf-8") if isinstance(raw, str) else raw
+        self.send_response(code)
+        self.send_header("Content-Type", ctype + "; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(out)))
+        self.end_headers()
+        self.wfile.write(out)
+
+    def _err_json(self, msg, code):
+        self._send_raw(json.dumps({"error": {"message": msg}}, ensure_ascii=False), code)
+
     def do_OPTIONS(self):
         self._send({"ok": True})
 
@@ -950,7 +967,7 @@ class Handler(BaseHTTPRequestHandler):
                     "ok": True,
                     "name": "yanzi-outdoor-proxy",
                     "version": "2.0.0",
-                    "routes": ["/health", "/weather", "/train", "/tickets", "/cheapest"],
+                    "routes": ["/health", "/weather", "/train", "/tickets", "/cheapest", "/deepseek/chat/completions"],
                     "time": time.strftime("%Y-%m-%d %H:%M:%S"),
                 })
             elif parsed.path == "/weather":
@@ -1082,8 +1099,80 @@ class Handler(BaseHTTPRequestHandler):
             "sun": sun,
         }
 
+    def _proxy_deepseek(self):
+        """POST /deepseek/chat/completions 透传：
+        从 config.txt 读取 DeepSeek Key，在服务端拼接 Authorization，把前端请求体原样转发到
+        https://api.deepseek.com/chat/completions，并原样返回。支持 stream:true 的 SSE 逐块透传
+        （逐行 readline + flush，不整包缓存），前端全程不持有密钥。"""
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        raw = self.rfile.read(length)
+        try:
+            body = json.loads(raw.decode("utf-8"))
+        except Exception:
+            self._err_json("请求体不是合法 JSON", 400)
+            return
+        try:
+            key = load_key()
+        except Exception:
+            self._err_json("未找到 config.txt，请把完整 DeepSeek Key 填进去。", 500)
+            return
+
+        stream = bool(body.get("stream"))
+        payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.deepseek.com/chat/completions",
+            data=payload,
+            headers={
+                "Authorization": "Bearer " + key,
+                "Content-Type": "application/json",
+                "Accept": "text/event-stream" if stream else "application/json",
+            },
+            method="POST",
+        )
+        try:
+            upstream = urllib.request.urlopen(req, timeout=300, context=SSL_CTX)
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "ignore")
+            self._send_raw(detail, e.code, "application/json")
+            return
+        except Exception as e:
+            self._err_json("上游连接失败: %s" % e, 502)
+            return
+
+        status = upstream.getcode()
+        if stream:
+            # 流式 SSE：逐行透传，关闭 Nginx 缓冲，靠连接关闭界定 body 长度
+            self.protocol_version = "HTTP/1.1"
+            self.send_response(status)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("X-Accel-Buffering", "no")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            try:
+                while True:
+                    line = upstream.readline()
+                    if not line:
+                        break
+                    self.wfile.write(line)
+                    self.wfile.flush()
+            except Exception:
+                pass
+            finally:
+                upstream.close()
+        else:
+            data = upstream.read()
+            upstream.close()
+            self._send_raw(data.decode("utf-8", "ignore"), status, "application/json")
+
     def do_POST(self):
-        if self.path != "/chat":
+        parsed = urllib.parse.urlparse(self.path)
+        if parsed.path == "/deepseek/chat/completions":
+            self._proxy_deepseek()
+            return
+        if parsed.path != "/chat":
             self._send({"ok": False, "error": "not found"}, 404)
             return
         length = int(self.headers.get("Content-Length", 0))
@@ -1165,7 +1254,7 @@ if __name__ == "__main__":
     print("=" * 48)
     print("燕子户外本地代理已启动：http://%s:%s" % (HOST, bound_port))
     print("能力：/health 健康检查 · /weather 天气 · /train 车次时刻")
-    print("      /tickets 站站余票 · /cheapest 最便宜方案")
+    print("      /tickets 站站余票 · /cheapest 最便宜方案 · /deepseek 对话透传")
     print("前端会自动发现本端口，无需手动配置。请保持本窗口打开。")
     print("=" * 48)
     server.serve_forever()

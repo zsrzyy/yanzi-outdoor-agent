@@ -766,15 +766,23 @@ var publicConfig = {
   publishableKey: "wbpk_gyEOe3fa3D7R2QEBI4mEgq_r9USapM7ynA2Pgik1vf1i2fd5AZY9YzM"
 };
 
-/* 自备 DeepSeek API（官方直连，默认通道） */
+/* DeepSeek 通道：密钥不再放在前端，所有请求改走本地代理透传（proxy.py 的 /deepseek/chat/completions）。
+   同源部署（Nginx 反代）走相对路径 /deepseek；本地 file:// 直开时自动走本地代理 PROXY。 */
 var DEEPSEEK_CONFIG = {
-  baseUrl: "https://api.deepseek.com",
-  apiKey: "YOUR_DEEPSEEK_API_KEY_HERE",
   models: [
     { id: "deepseek-v4-pro", name: "DeepSeek-V4-Pro" },
     { id: "deepseek-flash", name: "DeepSeek-Flash" },
   ],
 };
+
+/* DeepSeek 请求入口：同源部署用相对路径（Nginx 把 /deepseek 反代到 proxy.py），
+   file:// 直开用本地代理 PROXY，保证本地双击打开也能正常对话。 */
+function dsUrl(){
+  if(location.protocol === 'file:'){
+    return PROXY + '/deepseek/chat/completions';
+  }
+  return '/deepseek/chat/completions';
+}
 
 var SYSTEM_PROMPT = `# 角色设定
 你是「燕子户外」网站的官方智能客服助手，名叫"小燕"。燕子户外是一个专注于户外运动与自然旅行的综合性网站，涵盖徒步、露营、登山、骑行、溯溪、亲子户外等业务，为用户提供路线推荐、装备选购、活动报名、户外知识与安全保障服务。
@@ -1942,11 +1950,10 @@ async function dsRequestOnce(modelId, messages, tools, signal, temperature){
     temperature: (typeof temperature === 'number') ? temperature : 0.3,
   };
   if(tools && tools.length){ body.tools = tools; body.tool_choice = 'auto'; }
-  var resp = await fetch(DEEPSEEK_CONFIG.baseUrl + '/chat/completions', {
+  var resp = await fetch(dsUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + DEEPSEEK_CONFIG.apiKey,
     },
     body: JSON.stringify(body),
     signal: signal,
@@ -1963,11 +1970,10 @@ async function dsRequestOnce(modelId, messages, tools, signal, temperature){
 
 /* 流式请求：用于最终组织回答 */
 async function callDeepSeekOfficial(modelId, context, onDelta, signal){
-  var resp = await fetch(DEEPSEEK_CONFIG.baseUrl + '/chat/completions', {
+  var resp = await fetch(dsUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + DEEPSEEK_CONFIG.apiKey,
     },
     body: JSON.stringify({ model: modelId, messages: context, stream: true, temperature: 0.8 }),
     signal: signal,
