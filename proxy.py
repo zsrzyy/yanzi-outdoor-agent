@@ -33,9 +33,15 @@ MODEL = "deepseek-chat"
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("YANZI_PORT", "8899"))
 
-# 和风天气
+# 和风天气（Key 从 qweather_key.txt 读取，不入 git；Host 为账号专属 API 域名）
 QWEATHER_HOST = "https://mh78m47ufw.re.qweatherapi.com"
-QWEATHER_KEY = "3636aa9224b341228d6bb823f154775a"
+QWEATHER_KEY_FILE = os.path.join(BASE_DIR, "qweather_key.txt")
+QWEATHER_KEY = None
+try:
+    with open(QWEATHER_KEY_FILE, "r", encoding="utf-8") as _f:
+        QWEATHER_KEY = _f.read().strip() or None
+except Exception:
+    pass
 XZ_LOC = "101190801"  # 徐州
 
 # 聚合数据（兜底数据源）：12306 直连被风控/无数据时，用聚合数据火车时刻表接口兜底
@@ -1058,6 +1064,8 @@ class Handler(BaseHTTPRequestHandler):
         return str(hit["id"]), hit.get("name", loc), (hit.get("adm1", "") or "") + (hit.get("adm2", "") or "")
 
     def api_weather(self):
+        if not QWEATHER_KEY:
+            return {"ok": False, "error": "天气服务未配置：请在 proxy.py 同目录创建 qweather_key.txt 并填入和风天气 Key。"}
         qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
         loc = (qs.get("loc", [""])[0] or "").strip()
         try:

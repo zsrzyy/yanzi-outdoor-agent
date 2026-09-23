@@ -1,0 +1,30 @@
+# ============================================================
+# 燕子户外 proxy.py 守护服务（Linux 服务器用）
+#
+# 安装（假设项目放在 /var/www/yanzi-outdoor-agent）：
+#   sudo cp deploy/yanzi-proxy.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now yanzi-proxy
+#
+# 常用命令：
+#   查看状态：systemctl status yanzi-proxy
+#   看日志：  journalctl -u yanzi-proxy -f
+#   重启：    sudo systemctl restart yanzi-proxy
+# ============================================================
+
+[Unit]
+Description=Yanzi Outdoor Data Proxy (proxy.py)
+After=network.target
+
+[Service]
+Type=simple
+# TODO 改成你服务器上的实际项目目录
+WorkingDirectory=/var/www/yanzi-outdoor-agent
+ExecStart=/usr/bin/python3 /var/www/yanzi-outdoor-agent/proxy.py
+Restart=always
+RestartSec=3
+# 只监听 127.0.0.1，外部只能通过 Nginx 反代访问
+Environment=YANZI_PORT=8899
+
+[Install]
+WantedBy=multi-user.target
