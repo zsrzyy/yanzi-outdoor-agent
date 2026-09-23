@@ -711,16 +711,25 @@
 var $ = function(id){ return document.getElementById(id); };
 
 /* ================= 配置 ================= */
-/* 本地数据代理：默认 8899；若被占用（例如旧的代理进程还在跑），
-   会自动探测 8901 / 8902 等端口，避免"页面连不上助手"。
+/* 数据代理探测：空字符串排第一，表示「当前域名」（线上同源，走 Nginx 反代）；
+   本地地址（127.0.0.1:8899 / 8901 / 8902 / 8903）作为兜底——本地双击 index.html
+   （file://）时同源候选失败，自动回退到本机代理，本地用法与之前完全一致。
    健康检查必须拿到真实天气数据（ok===true 且有 now/daily）才算数——
    旧版代理进程即使所有查询都报错也能返回 ok:false，不能让它蒙混过关。 */
 var PROXY = 'http://127.0.0.1:8899';
-var PROXY_CANDIDATES = ['http://127.0.0.1:8899', 'http://127.0.0.1:8901', 'http://127.0.0.1:8902', 'http://127.0.0.1:8903'];
+var PROXY_CANDIDATES = ['', 'http://127.0.0.1:8899', 'http://127.0.0.1:8901', 'http://127.0.0.1:8902', 'http://127.0.0.1:8903'];
 var proxyResolved = false;
 var _proxyLastOk = 0;   // 上次成功探测时间戳
-/* 代理健康状态：ok=完整可用 / stale=旧版缺路由 / down=未启动 */
-var proxyHealth = { status: 'unknown', base: PROXY };
+/* 代理健康状态：ok=完整可用 / stale=旧版缺路由 / down=未启动；local=true 表示命中本机代理 */
+var proxyHealth = { status: 'unknown', base: PROXY, local: true };
+/* 是否命中本地代理（127.0.0.1 等）；同源部署（base 为空）返回 false。
+   代理尚未解析（unknown）时用协议兜底：file:// 视为本地，http/https 视为同源。 */
+function isLocalProxy(){
+  if(proxyHealth.status === 'unknown'){
+    return location.protocol === 'file:';
+  }
+  return proxyHealth.local !== false;
+}
 async function resolveProxy(){
   /* 成功过一次后，3 秒内直接复用，避免每次提问都探测；失败则每次重新探测 */
   if(proxyResolved && proxyHealth.status === 'ok' && (Date.now() - _proxyLastOk) < 3000){
@@ -741,7 +750,7 @@ async function resolveProxy(){
           PROXY = base;
           proxyResolved = true;
           _proxyLastOk = Date.now();
-          proxyHealth = { status: 'ok', base: base, version: j.version };
+          proxyHealth = { status: 'ok', base: base, local: base !== '', version: j.version };
           return PROXY;
         }
         /* 有响应但不是我们的 /health（旧版代理没这个路由） */
@@ -753,9 +762,9 @@ async function resolveProxy(){
   }
   proxyResolved = false;   /* 未找到可用代理，下次提问重新探测（用户可能中途启动了） */
   if(stale){
-    proxyHealth = { status: 'stale', base: stale };
+    proxyHealth = { status: 'stale', base: stale, local: stale !== '' };
   } else {
-    proxyHealth = { status: 'down', base: PROXY };
+    proxyHealth = { status: 'down', base: PROXY, local: PROXY !== '' };
   }
   PROXY = stale || PROXY;
   return PROXY;
@@ -1761,8 +1770,12 @@ function renderWelcome(){
       banner.style.display = '';
       banner.className = 'proxy-banner' + (proxyHealth.status === 'stale' ? ' stale' : '');
       banner.innerHTML = proxyHealth.status === 'stale'
-        ? '<b>⚠ 本地数据助手是旧版本</b>：车票/天气查询会失败。请关闭所有旧的黑色命令行窗口，重新双击 <b>start-proxy.bat</b>，然后<a id="pbRetry">点此重新检测</a>。'
-        : '<b>⚠ 本地数据助手未启动</b>：查车次/天气前请先双击项目文件夹里的 <b>start-proxy.bat</b>（黑色窗口保持打开）。启动后<a id="pbRetry">点此重新检测</a>即可，无需刷新页面。';
+        ? (isLocalProxy()
+            ? '<b>⚠ 本地数据助手是旧版本</b>：车票/天气查询会失败。请关闭所有旧的黑色命令行窗口，重新双击 <b>start-proxy.bat</b>，然后<a id="pbRetry">点此重新检测</a>。'
+            : '<b>⚠ 数据服务异常</b>：车票/天气查询暂时不可用，请稍后再试。<a id="pbRetry">点此重试</a>。')
+        : (isLocalProxy()
+            ? '<b>⚠ 本地数据助手未启动</b>：查车次/天气前请先双击项目文件夹里的 <b>start-proxy.bat</b>（黑色窗口保持打开）。启动后<a id="pbRetry">点此重新检测</a>即可，无需刷新页面。'
+            : '<b>⚠ 数据服务暂时不可用</b>：请稍后再试。<a id="pbRetry">点此重试</a>。');
       var retry = $('pbRetry');
       if(retry){
         retry.onclick = function(){
@@ -1880,7 +1893,7 @@ function guideCardHtml(){
   html += sec('chat', '日常咨询',
     '活动推荐、装备保养、难度评估、安全提示……户外相关的任何问题都可以直接聊。',
     ['最近有什么值得参加的徒步活动？','装备怎么保养才能用得久？']);
-  html += '<div class="guide-tip"><b>小提示：</b>查车次 / 天气需要先双击启动 <b>start-proxy.bat</b>（本地数据代理）；对话记忆保留 3 天自动清理；右下角购物车可随时查看已选装备。数据仅供参考，请以 12306 / 和风天气官方为准。</div>';
+  html += '<div class="guide-tip"><b>小提示：</b>' + (isLocalProxy() ? '查车次 / 天气需要先双击启动 <b>start-proxy.bat</b>（本地数据代理）' : '车次、天气为实时数据服务') + '；对话记忆保留 3 天自动清理；右下角购物车可随时查看已选装备。数据仅供参考，请以 12306 / 和风天气官方为准。</div>';
   html += '</div>';
   return html;
 }
@@ -2310,10 +2323,13 @@ function renderCheapest(d){
 
 /* ================= Agent 工具层：给 DeepSeek 用的 Function Calling ================= */
 function proxyDownHtml(){
-  if(proxyHealth.status === 'stale'){
-    return '<p class="tr-err">检测到本地助手是<b>旧版本</b>（缺少数据接口）。<br><br>请关闭所有旧的黑色命令行窗口，然后重新双击 <b>start-proxy.bat</b>，再问一次。</p>';
+  if(isLocalProxy()){
+    if(proxyHealth.status === 'stale'){
+      return '<p class="tr-err">检测到本地助手是<b>旧版本</b>（缺少数据接口）。<br><br>请关闭所有旧的黑色命令行窗口，然后重新双击 <b>start-proxy.bat</b>，再问一次。</p>';
+    }
+    return '<p class="tr-err">本地数据助手未启动（车票/天气数据接口）。<br><br>请在 yanzi-outdoor-agent 文件夹里<b>双击「start-proxy.bat」</b>，看到黑色窗口保持打开后再问。<br>启动后无需刷新，直接重新提问即可自动连上。</p>';
   }
-  return '<p class="tr-err">本地数据助手未启动（车票/天气数据接口）。<br><br>请在 yanzi-outdoor-agent 文件夹里<b>双击「start-proxy.bat」</b>，看到黑色窗口保持打开后再问。<br>启动后无需刷新，直接重新提问即可自动连上。</p>';
+  return '<p class="tr-err">数据服务暂时不可用，车票/天气查询失败，请稍后再试。</p>';
 }
 function normDateArg(v){
   if(!v){ return null; }
@@ -2429,7 +2445,10 @@ function toolResultText(name, payload){
   if(!payload){ return '（无返回数据）'; }
   if(payload.ok === false){
     if(payload.error === '__PROXY_DOWN__'){
-      return '【本地数据代理未启动】无法获取实时车次/天气数据。请告诉用户：请在 yanzi-outdoor-agent 文件夹双击 start-proxy.bat 启动本地数据助手，启动后无需刷新页面，直接重新提问即可。不要编造任何车次、票价或天气数据。';
+      if(isLocalProxy()){
+        return '【本地数据代理未启动】无法获取实时车次/天气数据。请告诉用户：请在 yanzi-outdoor-agent 文件夹双击 start-proxy.bat 启动本地数据助手，启动后无需刷新页面，直接重新提问即可。不要编造任何车次、票价或天气数据。';
+      }
+      return '【数据服务暂时不可用】无法获取实时车次/天气数据。请告诉用户：数据服务暂时不可用，请稍后再试。不要编造任何车次、票价或天气数据。';
     }
     return '【查询失败】' + (payload.error || '未知错误');
   }
@@ -2474,7 +2493,10 @@ function toolResultText(name, payload){
    避免模型把它误解成"预售期没到"之类的错误归因。 */
 function fixProxyError(payload){
   if(payload && payload.ok === false && /not found/i.test(String(payload.error || ''))){
-    return { ok:false, error:'本地助手版本过旧，缺少数据接口。请关闭所有旧的代理窗口，重新双击 start-proxy.bat 后再试。' };
+    if(isLocalProxy()){
+      return { ok:false, error:'本地助手版本过旧，缺少数据接口。请关闭所有旧的代理窗口，重新双击 start-proxy.bat 后再试。' };
+    }
+    return { ok:false, error:'数据服务暂时不可用，请稍后再试。' };
   }
   return payload;
 }
@@ -2654,7 +2676,7 @@ async function runToolLoop(modelId, context, onToolEvent, signal){
         out = await runAgentTool(fnName, fnArgs);
       }catch(e){
         var isDown = /Failed to fetch|NetworkError|Load failed|ERR_CONNECTION/i.test(String((e && e.message) || e));
-        out = { payload: { ok:false, error: isDown ? '__PROXY_DOWN__' : ('本地助手调用失败：' + ((e && e.message) || e)) } };
+        out = { payload: { ok:false, error: isDown ? '__PROXY_DOWN__' : ((isLocalProxy() ? '本地助手调用失败：' : '数据服务调用失败：') + ((e && e.message) || e)) } };
       }
       if(onToolEvent){ onToolEvent('end', fnName, fnArgs, out); }
       if(out.cardHtml){ cards.push(out.cardHtml); }
@@ -2765,7 +2787,9 @@ async function send(text, isRetry){
       /* 工具链路整体不可用（模型不支持 tools / Key 异常等）→ 退回普通流式对话 */
       var retryCtx = context.slice();
       if(toolError || true){
-        retryCtx.push({ role:'user', content:'（系统提示：本地实时数据工具暂时不可用，请不要编造实时车次或天气数据，可用你已有的户外知识回答，并提醒我启动本地数据代理以获取实时信息。）' });
+        retryCtx.push({ role:'user', content: isLocalProxy()
+          ? '（系统提示：本地实时数据工具暂时不可用，请不要编造实时车次或天气数据，可用你已有的户外知识回答，并提醒我启动本地数据代理以获取实时信息。）'
+          : '（系统提示：实时数据服务暂时不可用，请不要编造实时车次或天气数据，可用你已有的户外知识回答，并提醒用户稍后再试。）' });
       }
       return await callStreamOrFallback(officialModel, retryCtx, function(delta, isReasoning){
         if(isReasoning && !plainBuf){ textEl.innerHTML = '<span class="thinking">💭 小燕正在思考…</span>'; }
@@ -2963,7 +2987,7 @@ function renderDetail(id){
           '<div class="kb-tip">数据来自和风天气实时接口，每天自动更新，无需手动维护。</div>'+
         '</div>';
     }).catch(function(){
-      slot.innerHTML = '<div class="kb-section"><div class="kb-h3"><span class="no">实时</span>徐州实时天气</div><p class="tr-err">连不上本地助手（127.0.0.1:8899）。请双击项目文件夹里的「start-proxy.bat」启动数据代理后刷新本页。</p></div>';
+      slot.innerHTML = '<div class="kb-section"><div class="kb-h3"><span class="no">实时</span>徐州实时天气</div><p class="tr-err">' + (isLocalProxy() ? '连不上本地助手（127.0.0.1:8899）。请双击项目文件夹里的「start-proxy.bat」启动数据代理后刷新本页。' : '数据服务暂时不可用，天气数据加载失败，请稍后再试。') + '</p></div>';
     });
   }
 }
