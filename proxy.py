@@ -24,7 +24,18 @@ import urllib.error
 import urllib.parse
 import http.cookiejar
 from concurrent.futures import ThreadPoolExecutor
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
+
+# 兼容 Python 3.6（CentOS / Alibaba Cloud Linux 系统自带）：
+# ThreadingHTTPServer 是 3.7+ 才有的，这里手工拼一个行为完全一致的替代类。
+try:
+    from http.server import ThreadingHTTPServer  # Python 3.7+
+except ImportError:
+    class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+        """多线程 HTTP 服务器（3.6 兼容实现，等价于 3.7+ 内置版）。"""
+        daemon_threads = True
+        allow_reuse_address = True
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(BASE_DIR, "config.txt")
